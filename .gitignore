@@ -122,3 +122,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# MacOS trash
+.DS_Store
+
+# PyCharm
+.idea/
