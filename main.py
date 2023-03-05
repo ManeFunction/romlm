@@ -14,63 +14,67 @@ def create_if_not_exist(folder):
 
 
 # define the method that get a specific folder name based on sorting needs
-def get_new_folder(file_name) -> str:
-	file_name_lower = file_name.lower()
+def get_new_folder(filename) -> str:
+	file_name_lower = filename.lower()
 	if 'aftermarket' in file_name_lower:
-		target_folder = "!Aftermarket"
+		targetfolder = "!Aftermarket"
 	elif 'homebrew' in file_name_lower:
-		target_folder = "!Homebrew"
+		targetfolder = "!Homebrew"
 	else:
-		target_folder = file_name[0].upper()
-		if target_folder == "[":
-			target_folder = "!BIOS"
-		elif not target_folder.isalpha():
-			target_folder = "1-9"
-	create_if_not_exist(target_folder)
-	return target_folder
+		targetfolder = filename[0].upper()
+		if targetfolder == "[":
+			targetfolder = "!BIOS"
+		elif not targetfolder.isalpha():
+			targetfolder = "1-9"
+	create_if_not_exist(targetfolder)
+	return targetfolder
 
 
 # main codeblock declaration to be able to use arguments
 if __name__ == "__main__":
 	# set up parameters, check input arguments
-	isSortEnabled = True
-	isExtractEnabled = True
-	isDeleteEnabled = True
+	is_sort_enabled = True
+	is_extract_enabled = True
+	is_delete_enabled = True
+	is_filename_enabled = False
 	for arg in sys.argv:
 		if arg == "--nosort":
-			isSortEnabled = False
+			is_sort_enabled = False
 		elif arg == "--noextract":
-			isExtractEnabled = False
+			is_extract_enabled = False
 		elif arg == "--nodelete":
-			isDeleteEnabled = False
+			is_delete_enabled = False
+		elif arg == "--filename":
+			is_filename_enabled = True
 
 	# nothing to do?
-	if isSortEnabled is False and isExtractEnabled is False:
+	if is_sort_enabled is False and is_extract_enabled is False:
 		print("Nothing to do...")
 		exit()
 
 	# get files list and iterate it with progress bar
-	filesList = glob.glob("*.zip") + glob.glob("*.7z")
-	total = len(filesList)
-	print("Total files found: " + str(total))
-	for i in tqdm(range(total)):
-		fileName = filesList[i]
+	files_list = glob.glob("*.zip") + glob.glob("*.7z")
+	progress = tqdm(files_list)
+	for file_name in progress:
+		# set progress bar description
+		if is_filename_enabled:
+			progress.set_description(file_name)
 		# sorting option
-		if isSortEnabled:
-			targetFolder = get_new_folder(fileName)
+		if is_sort_enabled:
+			target_folder = get_new_folder(file_name)
 		else:
-			targetFolder = './'
+			target_folder = './'
 		# extracting option
-		if isExtractEnabled:
-			if fileName.endswith(".7z"):
-				with py7zr.SevenZipFile(fileName, 'r') as archive:
-					archive.extractall(targetFolder)
-			elif fileName.endswith(".zip"):
-				with zipfile.ZipFile(fileName, 'r') as archive:
-					archive.extractall(targetFolder)
-			if isDeleteEnabled:
-				os.remove(fileName)
+		if is_extract_enabled:
+			if file_name.endswith(".7z"):
+				with py7zr.SevenZipFile(file_name, 'r') as archive:
+					archive.extractall(target_folder)
+			elif file_name.endswith(".zip"):
+				with zipfile.ZipFile(file_name, 'r') as archive:
+					archive.extractall(target_folder)
+			if is_delete_enabled:
+				os.remove(file_name)
 		else:
-			shutil.move(fileName, os.path.join(targetFolder, fileName))
+			shutil.move(file_name, os.path.join(target_folder, file_name))
 	print("DONE!")
 
