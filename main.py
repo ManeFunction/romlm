@@ -23,7 +23,7 @@ def get_new_folder(filename) -> str:
 	else:
 		targetfolder = filename[0].upper()
 		if targetfolder == "[":
-			targetfolder = "!BIOS"
+			targetfolder = "_BIOS"
 		elif not targetfolder.isalpha():
 			targetfolder = "1-9"
 	create_if_not_exist(targetfolder)
