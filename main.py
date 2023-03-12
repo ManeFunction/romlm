@@ -38,13 +38,13 @@ if __name__ == "__main__":
 	is_delete_enabled = True
 	is_filename_enabled = False
 	for arg in sys.argv:
-		if arg == "--nosort":
+		if arg == "-s" or arg == "--nosort":
 			is_sort_enabled = False
-		elif arg == "--noextract":
+		elif arg == "-e" or arg == "--noextract":
 			is_extract_enabled = False
-		elif arg == "--nodelete":
+		elif arg == "-d" or arg == "--nodelete":
 			is_delete_enabled = False
-		elif arg == "--filename":
+		elif arg == "-f" or arg == "--filename":
 			is_filename_enabled = True
 
 	# nothing to do?
