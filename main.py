@@ -36,16 +36,16 @@ if __name__ == "__main__":
 	is_sort_enabled = True
 	is_extract_enabled = True
 	is_delete_enabled = True
-	is_filename_enabled = False
+	is_log_enabled = False
 	for arg in sys.argv:
-		if arg == "-s" or arg == "--nosort":
+		if arg == "-e" or arg == "--extract":
 			is_sort_enabled = False
-		elif arg == "-e" or arg == "--noextract":
+		elif arg == "-s" or arg == "--sort":
 			is_extract_enabled = False
-		elif arg == "-d" or arg == "--nodelete":
+		elif arg == "-k" or arg == "--keep":
 			is_delete_enabled = False
-		elif arg == "-f" or arg == "--filename":
-			is_filename_enabled = True
+		elif arg == "-l" or arg == "--log":
+			is_log_enabled = True
 
 	# nothing to do?
 	if is_sort_enabled is False and is_extract_enabled is False:
@@ -53,12 +53,18 @@ if __name__ == "__main__":
 		exit()
 
 	# get files list and iterate it with progress bar
-	files_list = glob.glob("*.zip") + glob.glob("*.7z")
-	progress = tqdm(files_list)
+	if is_extract_enabled:
+		files_list = glob.glob("*.zip") + glob.glob("*.7z")
+	else:
+		files_list = glob.glob("*.*")
+		files_list = [file for file in files_list if not file.endswith(".py")]
+	if is_log_enabled:
+		progress = files_list
+	else:
+		progress = tqdm(files_list)
 	for file_name in progress:
-		# set progress bar description
-		if is_filename_enabled:
-			progress.set_description(file_name)
+		if is_log_enabled:
+			print("Processing: " + file_name)
 		# sorting option
 		if is_sort_enabled:
 			target_folder = get_new_folder(file_name)
@@ -76,5 +82,6 @@ if __name__ == "__main__":
 				os.remove(file_name)
 		else:
 			shutil.move(file_name, os.path.join(target_folder, file_name))
+	os.remove("main.py")
 	print("DONE!")
 
