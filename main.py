@@ -17,17 +17,17 @@ def create_if_not_exist(folder):
 def get_new_folder(filename) -> str:
 	file_name_lower = filename.lower()
 	if 'aftermarket' in file_name_lower:
-		targetfolder = "!Aftermarket"
+		folder_name = "!Aftermarket"
 	elif 'homebrew' in file_name_lower:
-		targetfolder = "!Homebrew"
+		folder_name = "!Homebrew"
 	else:
-		targetfolder = filename[0].upper()
-		if targetfolder == "[":
-			targetfolder = "!!BIOS"
-		elif not targetfolder.isalpha():
-			targetfolder = "1-9"
-	create_if_not_exist(targetfolder)
-	return targetfolder
+		folder_name = filename[0].upper()
+		if folder_name == "[":
+			folder_name = "!!BIOS"
+		elif not folder_name.isalpha():
+			folder_name = "1-9"
+	create_if_not_exist(folder_name)
+	return folder_name
 
 
 # main codeblock declaration to be able to use arguments
