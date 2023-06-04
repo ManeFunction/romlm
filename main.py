@@ -5,6 +5,7 @@ import glob
 import py7zr
 import zipfile
 from tqdm import tqdm
+from multiprocessing import Process, freeze_support
 
 
 # define the method that check if file exists and create it if it doesn't
@@ -30,8 +31,11 @@ def get_new_folder(filename) -> str:
 	return folder_name
 
 
-# main codeblock declaration to be able to use arguments
-if __name__ == "__main__":
+# main codeblock
+def mane():
+	# set execution path to script's folder
+	os.chdir(os.path.dirname(os.path.abspath(sys.executable)))
+	print("Current working directory: ", os.getcwd())
 	# set up parameters, check input arguments
 	is_sort_enabled = True
 	is_extract_enabled = True
@@ -50,7 +54,7 @@ if __name__ == "__main__":
 	# nothing to do?
 	if is_sort_enabled is False and is_extract_enabled is False:
 		print("Nothing to do...")
-		exit()
+		sys.exit()
 
 	# get files list and iterate it with progress bar
 	if is_extract_enabled:
@@ -82,5 +86,14 @@ if __name__ == "__main__":
 				os.remove(file_name)
 		else:
 			shutil.move(file_name, os.path.join(target_folder, file_name))
-	print("DONE!")
 
+	print("DONE!")
+	sys.exit()
+
+
+# main method declaration to be able to use arguments
+# and prevent compiled executable from getting stuck in the infinite loop
+if __name__ == "__main__":
+	print("\nWelcome to the ROMs sorter by Mane Function!\nInitializing...")
+	freeze_support()
+	Process(target=mane).start()
