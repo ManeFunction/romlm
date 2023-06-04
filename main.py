@@ -82,6 +82,5 @@ if __name__ == "__main__":
 				os.remove(file_name)
 		else:
 			shutil.move(file_name, os.path.join(target_folder, file_name))
-	os.remove("main.py")
 	print("DONE!")
 
