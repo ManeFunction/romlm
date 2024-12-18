@@ -81,7 +81,7 @@ def clean_duplicates(file_list, is_log_enabled):
 	print(">> Removing duplicates safely... \nTotal ROMs:", len(file_list), "\nActual games:", len(by_basename))
 
 	files_to_keep = set()
-	regions_priority = ["USA", "Europe", "Japan"]
+	regions_priority = ["World", "USA", "Europe", "Japan"]
 
 	if is_log_enabled:
 		progress = by_basename.items()
