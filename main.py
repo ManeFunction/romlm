@@ -14,9 +14,7 @@ def create_if_not_exist(folder):
 
 def get_new_folder(filename) -> str:
 	file_name_lower = filename.lower()
-	if 'aftermarket' in file_name_lower:
-		folder_name = "!Aftermarket"
-	elif 'homebrew' in file_name_lower:
+	if 'homebrew' in file_name_lower or 'aftermarket' in file_name_lower:
 		folder_name = "!Homebrew"
 	else:
 		folder_name = filename[0].upper() if filename else ''
