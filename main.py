@@ -11,17 +11,23 @@ from multiprocessing import Process, freeze_support
 def create_if_not_exist(folder):
 	if not os.path.exists(folder):
 		os.makedirs(folder)
+		
+def get_lettered_folder_name(filename) -> str:
+	folder_name = filename[0].upper() if filename else ''
+	if folder_name == "[":
+		folder_name = "!!BIOS"
+	elif not folder_name.isalpha():
+		folder_name = "1-9"
+	return folder_name
 
-def get_new_folder(filename) -> str:
+def get_new_folder(filename, is_sort_homebrew) -> str:
 	file_name_lower = filename.lower()
 	if 'homebrew' in file_name_lower or 'aftermarket' in file_name_lower:
 		folder_name = "!Homebrew"
+		if is_sort_homebrew:
+			folder_name += "/" + get_lettered_folder_name(filename)
 	else:
-		folder_name = filename[0].upper() if filename else ''
-		if folder_name == "[":
-			folder_name = "!!BIOS"
-		elif not folder_name.isalpha():
-			folder_name = "1-9"
+		folder_name = get_lettered_folder_name(filename)
 	create_if_not_exist(folder_name)
 	return folder_name
 
@@ -112,6 +118,7 @@ def mane():
 	print(">> Initializing...")
 
 	is_sort_enabled = False
+	is_sort_homebrew = False
 	is_reverse_sort = False
 	is_extract_enabled = False
 	is_delete_enabled = True
@@ -129,7 +136,10 @@ def mane():
 			is_extract_enabled = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
-			if i+1 < len(args) and args[i+1] == "reverse":
+			if i+1 < len(args) and args[i+1] == "homebrew":
+				is_sort_homebrew = True
+				skip_next = True
+			elif i+1 < len(args) and args[i+1] == "reverse":
 				is_reverse_sort = True
 				skip_next = True
 		elif arg in ("-k", "--keep"):
@@ -184,7 +194,7 @@ def mane():
 				if is_reverse_sort:
 					target_folder = '.'
 				else:
-					target_folder = get_new_folder(file_name)
+					target_folder = get_new_folder(file_name, is_sort_homebrew)
 			else:
 				target_folder = './'
 	
