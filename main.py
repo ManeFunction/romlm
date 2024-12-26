@@ -124,9 +124,6 @@ def clean_duplicates(file_list, is_log_enabled):
 
 	return [f for f in file_list if f in files_to_keep]
 
-def check_parameter(args, i, param) -> bool:
-	return i < len(args) and args[i] == param
-
 def mane():
 	print(">> Initializing...")
 
@@ -134,9 +131,9 @@ def mane():
 	is_sort_homebrew = False
 	is_sort_subfolders = False
 	is_reverse_sort = False
-	is_unpack_enabled = False
+	is_unpacking_enabled = False
 	is_packing_enabled = False
-	is_delete_enabled = True
+	packing_format = "7z"
 	is_log_enabled = False
 	is_remove_duplicates = False
 	subfolders = None
@@ -149,14 +146,18 @@ def mane():
 			skip_next = False
 			continue
 		if arg in ("-u", "--unpack"):
-			is_unpack_enabled = True
-			if check_parameter(args, i+1, "keep"):
-				is_delete_enabled = False
-				skip_next = True
+			is_unpacking_enabled = True
 		elif arg in ("-p", "--pack"):
 			is_packing_enabled = True
-			if check_parameter(args, i+1, "keep"):
-				is_delete_enabled = False
+			if i+1 < len(args) and not args[i+1].startswith("-"):
+				pack_param = args[i+1]
+				if pack_param == "7z":
+					packing_format = "7z"
+				elif pack_param == "zip":
+					packing_format = "zip"
+				else:
+					print(f"Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.")
+					sys.exit(1)
 				skip_next = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
@@ -189,12 +190,12 @@ def mane():
 				print("Error: --input requires a folder path.")
 				sys.exit(1)
 
-	if is_unpack_enabled is True and is_packing_enabled is True:
+	if is_unpacking_enabled is True and is_packing_enabled is True:
 		print("Error: You cannot --extract and --pack at the same time.")
 		sys.exit()
 
 	if (is_sort_enabled is False
-			and is_unpack_enabled is False
+			and is_unpacking_enabled is False
 			and is_packing_enabled is False
 			and is_remove_duplicates is False):
 		print("Nothing to do...")
@@ -215,7 +216,7 @@ def mane():
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
 	# Process files
-	if is_sort_enabled is True or is_unpack_enabled is True or is_packing_enabled is True:
+	if is_sort_enabled is True or is_unpacking_enabled is True or is_packing_enabled is True:
 		print(">> Processing files...")
 		if is_log_enabled:
 			progress = files_list
@@ -236,23 +237,25 @@ def mane():
 				target_folder = './'
 	
 			# Extracting option
-			if is_unpack_enabled:
+			if is_unpacking_enabled:
 				if file_name.endswith(".7z"):
 					with py7zr.SevenZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
 				elif file_name.endswith(".zip"):
 					with zipfile.ZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
-				if is_delete_enabled:
-					os.remove(file_name)
+				os.remove(file_name)
 			# Packing option
 			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
 				if is_log_enabled:
 					print("Packing:", file_name)
-				with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
-					archive.write(file_name)
-				if is_delete_enabled:
-					os.remove(file_name)
+				if packing_format == "7z":
+					with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
+						archive.write(file_name)
+				elif packing_format == "zip":
+					with zipfile.ZipFile(file_name + ".zip", 'w', zipfile.ZIP_DEFLATED) as archive:
+						archive.write(file_name, os.path.basename(file_name))
+				os.remove(file_name)
 			else:
 				shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
 	
