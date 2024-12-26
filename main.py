@@ -234,8 +234,7 @@ def mane():
 			else:
 				shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
 	
-		if is_sort_enabled and is_reverse_sort:
-			remove_empty_subfolders(".", is_log_enabled)
+		remove_empty_subfolders(".", is_log_enabled)
 
 	print(">> DONE!")
 	sys.exit()
