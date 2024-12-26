@@ -207,10 +207,7 @@ def mane():
 	print(f"Current working directory set to: {os.getcwd()}")
 
 	# Get files list
-	if is_unpack_enabled:
-		files_list = glob.glob("**/*.zip", recursive=True) + glob.glob("**/*.7z", recursive=True)
-	else:
-		files_list = glob.glob("**/*.*", recursive=True)
+	files_list = glob.glob("**/*.*", recursive=True)
 
 	# If duplicates removal is enabled, do it first
 	if is_remove_duplicates:
