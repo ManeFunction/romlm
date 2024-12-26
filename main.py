@@ -124,6 +124,9 @@ def clean_duplicates(file_list, is_log_enabled):
 
 	return [f for f in file_list if f in files_to_keep]
 
+def check_parameter(args, i, param) -> bool:
+	return i < len(args) and args[i] == param
+
 def mane():
 	print(">> Initializing...")
 
@@ -132,6 +135,7 @@ def mane():
 	is_sort_subfolders = False
 	is_reverse_sort = False
 	is_extract_enabled = False
+	is_packing_enabled = False
 	is_delete_enabled = True
 	is_log_enabled = False
 	is_remove_duplicates = False
@@ -146,6 +150,14 @@ def mane():
 			continue
 		if arg in ("-e", "--extract"):
 			is_extract_enabled = True
+			if check_parameter(args, i+1, "keep"):
+				is_delete_enabled = False
+				skip_next = True
+		elif arg in ("-p", "--pack"):
+			is_packing_enabled = True
+			if check_parameter(args, i+1, "keep"):
+				is_delete_enabled = False
+				skip_next = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
 			if i+1 < len(args):
@@ -156,8 +168,6 @@ def mane():
 					is_sort_homebrew = sort_param in ("all", "homebrew")
 					is_sort_subfolders = sort_param in ("all", "subfolders")
 				skip_next = True
-		elif arg in ("-k", "--keep"):
-			is_delete_enabled = False
 		elif arg in ("-l", "--log"):
 			is_log_enabled = True
 		elif arg in ("-r", "--remove-duplicates"):
@@ -179,15 +189,22 @@ def mane():
 				print("Error: --input requires a folder path.")
 				sys.exit(1)
 
+	if is_extract_enabled is True and is_packing_enabled is True:
+		print("Error: You cannot --extract and --pack at the same time.")
+		sys.exit()
+
+	if (is_sort_enabled is False
+			and is_extract_enabled is False
+			and is_packing_enabled is False
+			and is_remove_duplicates is False):
+		print("Nothing to do...")
+		sys.exit()
+
 	if not os.path.exists(input_folder):
 		print(f"Error: The specified input folder '{input_folder}' does not exist.")
 		sys.exit(1)
 	os.chdir(input_folder)
 	print(f"Current working directory set to: {os.getcwd()}")
-
-	if is_sort_enabled is False and is_extract_enabled is False and is_remove_duplicates is False:
-		print("Nothing to do...")
-		sys.exit()
 
 	# Get files list
 	if is_extract_enabled:
@@ -201,7 +218,7 @@ def mane():
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
 	# Process files
-	if is_sort_enabled is True or is_extract_enabled is True:
+	if is_sort_enabled is True or is_extract_enabled is True or is_packing_enabled is True:
 		print(">> Processing files...")
 		if is_log_enabled:
 			progress = files_list
@@ -229,6 +246,14 @@ def mane():
 				elif file_name.endswith(".zip"):
 					with zipfile.ZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
+				if is_delete_enabled:
+					os.remove(file_name)
+			# Packing option
+			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
+				if is_log_enabled:
+					print("Packing:", file_name)
+				with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
+					archive.writeall(file_name)
 				if is_delete_enabled:
 					os.remove(file_name)
 			else:
