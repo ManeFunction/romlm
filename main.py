@@ -20,12 +20,22 @@ def get_lettered_folder_name(filename) -> str:
 		folder_name = "1-9"
 	return folder_name
 
-def get_new_folder(filename, is_sort_homebrew) -> str:
+def try_add_subfolder(is_sort_subfolders, folder_name, filename) -> str:
+	return (folder_name + "/" + get_lettered_folder_name(filename)) if is_sort_subfolders else folder_name
+
+def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -> str:
 	file_name_lower = filename.lower()
 	if 'homebrew' in file_name_lower or 'aftermarket' in file_name_lower:
-		folder_name = "!Homebrew"
-		if is_sort_homebrew:
-			folder_name += "/" + get_lettered_folder_name(filename)
+		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
+	elif subfolders is not None:
+		found_subfolder = ""
+		for subfolder in subfolders:
+			if subfolder.lower() in file_name_lower:
+				found_subfolder = "!" + subfolder
+				break
+		folder_name = try_add_subfolder(is_sort_subfolders, found_subfolder, filename) \
+			if found_subfolder != "" \
+			else get_lettered_folder_name(filename)
 	else:
 		folder_name = get_lettered_folder_name(filename)
 	create_if_not_exist(folder_name)
@@ -119,11 +129,13 @@ def mane():
 
 	is_sort_enabled = False
 	is_sort_homebrew = False
+	is_sort_subfolders = False
 	is_reverse_sort = False
 	is_extract_enabled = False
 	is_delete_enabled = True
 	is_log_enabled = False
 	is_remove_duplicates = False
+	subfolders = None
 	input_folder = "."
 
 	args = sys.argv[1:]
@@ -136,11 +148,13 @@ def mane():
 			is_extract_enabled = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
-			if i+1 < len(args) and args[i+1] == "homebrew":
-				is_sort_homebrew = True
-				skip_next = True
-			elif i+1 < len(args) and args[i+1] == "reverse":
-				is_reverse_sort = True
+			if i+1 < len(args):
+				sort_param = args[i+1]
+				if sort_param == "reverse":
+					is_reverse_sort = True
+				else:
+					is_sort_homebrew = sort_param in ("all", "homebrew")
+					is_sort_subfolders = sort_param in ("all", "subfolders")
 				skip_next = True
 		elif arg in ("-k", "--keep"):
 			is_delete_enabled = False
@@ -148,6 +162,15 @@ def mane():
 			is_log_enabled = True
 		elif arg in ("-r", "--remove-duplicates"):
 			is_remove_duplicates = True
+		elif arg in ("-f", "--subfolders"):
+			if i+1 < len(args):
+				subfolders = args[i+1].split(",")
+				if is_log_enabled:
+					print("Subfolders:", subfolders)
+				skip_next = True
+			else:
+				print("Error: --subfolders requires a comma-separated list of subfolders.")
+				sys.exit(1)
 		elif arg in ("-i", "--input"):
 			if i+1 < len(args):
 				input_folder = args[i+1]
@@ -194,7 +217,7 @@ def mane():
 				if is_reverse_sort:
 					target_folder = '.'
 				else:
-					target_folder = get_new_folder(file_name, is_sort_homebrew)
+					target_folder = get_new_folder(os.path.basename(file_name), is_sort_homebrew, is_sort_subfolders, subfolders)
 			else:
 				target_folder = './'
 	
