@@ -253,7 +253,7 @@ def mane():
 				if is_log_enabled:
 					print("Packing:", file_name)
 				with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
-					archive.writeall(file_name)
+					archive.write(file_name)
 				if is_delete_enabled:
 					os.remove(file_name)
 			else:
