@@ -134,7 +134,7 @@ def mane():
 	is_sort_homebrew = False
 	is_sort_subfolders = False
 	is_reverse_sort = False
-	is_extract_enabled = False
+	is_unpack_enabled = False
 	is_packing_enabled = False
 	is_delete_enabled = True
 	is_log_enabled = False
@@ -148,8 +148,8 @@ def mane():
 		if skip_next:
 			skip_next = False
 			continue
-		if arg in ("-e", "--extract"):
-			is_extract_enabled = True
+		if arg in ("-u", "--unpack"):
+			is_unpack_enabled = True
 			if check_parameter(args, i+1, "keep"):
 				is_delete_enabled = False
 				skip_next = True
@@ -189,12 +189,12 @@ def mane():
 				print("Error: --input requires a folder path.")
 				sys.exit(1)
 
-	if is_extract_enabled is True and is_packing_enabled is True:
+	if is_unpack_enabled is True and is_packing_enabled is True:
 		print("Error: You cannot --extract and --pack at the same time.")
 		sys.exit()
 
 	if (is_sort_enabled is False
-			and is_extract_enabled is False
+			and is_unpack_enabled is False
 			and is_packing_enabled is False
 			and is_remove_duplicates is False):
 		print("Nothing to do...")
@@ -207,7 +207,7 @@ def mane():
 	print(f"Current working directory set to: {os.getcwd()}")
 
 	# Get files list
-	if is_extract_enabled:
+	if is_unpack_enabled:
 		files_list = glob.glob("**/*.zip", recursive=True) + glob.glob("**/*.7z", recursive=True)
 	else:
 		files_list = glob.glob("**/*.*", recursive=True)
@@ -218,7 +218,7 @@ def mane():
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
 	# Process files
-	if is_sort_enabled is True or is_extract_enabled is True or is_packing_enabled is True:
+	if is_sort_enabled is True or is_unpack_enabled is True or is_packing_enabled is True:
 		print(">> Processing files...")
 		if is_log_enabled:
 			progress = files_list
@@ -239,7 +239,7 @@ def mane():
 				target_folder = './'
 	
 			# Extracting option
-			if is_extract_enabled:
+			if is_unpack_enabled:
 				if file_name.endswith(".7z"):
 					with py7zr.SevenZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
