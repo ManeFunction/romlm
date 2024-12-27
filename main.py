@@ -234,7 +234,7 @@ def mane():
 				else:
 					target_folder = get_new_folder(os.path.basename(file_name), is_sort_homebrew, is_sort_subfolders, subfolders)
 			else:
-				target_folder = './'
+				target_folder = os.path.dirname(file_name)
 	
 			# Extracting option
 			if is_unpacking_enabled:
@@ -256,8 +256,9 @@ def mane():
 					with zipfile.ZipFile(file_name + ".zip", 'w', zipfile.ZIP_DEFLATED) as archive:
 						archive.write(file_name, os.path.basename(file_name))
 				os.remove(file_name)
+			# Execute sorting
 			else:
-				shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
+				shutil.move(file_name, os.path.join(target_folder, os.path.basename(str(file_name))))
 	
 		remove_empty_subfolders(".", is_log_enabled)
 
