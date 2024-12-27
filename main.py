@@ -75,6 +75,13 @@ def remove_empty_subfolders(path, is_log_enabled):
 				os.rmdir(dirpath)
 				if is_log_enabled:
 					print(f"Removed empty folder: {dirpath}")
+				# Kinda cludgy, but keep removing empty parent folders until we hit the root, to clear empty trees
+				parent_dir = os.path.dirname(dirpath)
+				while parent_dir != path and not os.listdir(parent_dir):
+					os.rmdir(parent_dir)
+					if is_log_enabled:
+						print(f"Removed empty folder: {parent_dir}")
+					parent_dir = os.path.dirname(parent_dir)
 
 def get_base_name(filename: str) -> str:
 	name_no_ext = os.path.splitext(filename)[0]
