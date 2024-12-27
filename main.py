@@ -32,15 +32,22 @@ def get_tags_from_filename(filename: str) -> list[str]:
 		all_tags.extend(split_tags)
 	return [tag.lower() for tag in all_tags]
 
-def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders, excludes) -> str:
+def get_new_folder(filename, is_separate_homebrew, is_separate_pirates, 
+				   is_sort_homebrew, is_sort_pirates, is_sort_subfolders, subfolders, excludes) -> str:
 	file_tags = get_tags_from_filename(filename)
 	excludes = {exclude.lower() for exclude in excludes} if excludes is not None else None
 	
 	# Check for 'homebrew' or 'aftermarket' tags
-	if is_sort_homebrew and (
+	if is_separate_homebrew and (
 			"homebrew" in file_tags or "aftermarket" in file_tags
 	):
 		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
+		
+	# Check for 'pirate' or 'unl' tags
+	elif is_separate_pirates and (
+			"pirate" in file_tags or "unl" in file_tags
+	):
+		folder_name = try_add_subfolder(is_sort_pirates, "!Pirates", filename)
 
 	# Check for any user-defined 'subfolders' value matches any tag.
 	elif subfolders is not None:
@@ -155,11 +162,17 @@ def clean_duplicates(file_list, is_log_enabled):
 
 	return [f for f in file_list if f in files_to_keep]
 
+def is_next_optional_parameter(args, i) -> bool:
+	return i+1 < len(args) and not args[i+1].startswith("-")
+
 def mane():
 	print(">> Initializing...")
 
+	is_separate_homebrew = True
+	is_separate_pirates = True
 	is_sort_enabled = False
 	is_sort_homebrew = False
+	is_sort_pirates = False
 	is_sort_subfolders = False
 	is_reverse_sort = False
 	is_unpacking_enabled = False
@@ -182,7 +195,7 @@ def mane():
 			is_unpacking_enabled = True
 		elif arg in ("-p", "--pack"):
 			is_packing_enabled = True
-			if i+1 < len(args) and not args[i+1].startswith("-"):
+			if is_next_optional_parameter(args, i):
 				pack_param = args[i+1]
 				if pack_param == "7z":
 					packing_format = "7z"
@@ -192,15 +205,22 @@ def mane():
 					print(f"Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.")
 					sys.exit(1)
 				skip_next = True
+		elif arg in ("-k", "--keep"):
+			if is_next_optional_parameter(args, i):
+				keep_params = args[i+1]
+				is_separate_homebrew = 'a' in keep_params or 'h' in keep_params
+				is_separate_pirates = 'a' in keep_params or 'p' in keep_params
+				skip_next = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
-			if i+1 < len(args):
-				sort_param = args[i+1]
-				if sort_param == "reverse":
+			if is_next_optional_parameter(args, i):
+				sort_params = args[i+1]
+				if sort_params == "reverse":
 					is_reverse_sort = True
 				else:
-					is_sort_homebrew = sort_param in ("all", "homebrew")
-					is_sort_subfolders = sort_param in ("all", "subfolders")
+					is_sort_homebrew = 'a' in sort_params or 'h' in sort_params
+					is_sort_pirates = 'a' in sort_params or 'p' in sort_params
+					is_sort_subfolders = 'a' in sort_params or 's' in sort_params
 				skip_next = True
 		elif arg in ("-l", "--log"):
 			is_log_enabled = True
@@ -278,7 +298,9 @@ def mane():
 				if is_reverse_sort:
 					target_folder = '.'
 				else:
-					target_folder = get_new_folder(os.path.basename(file_name), is_sort_homebrew, is_sort_subfolders, 
+					target_folder = get_new_folder(os.path.basename(file_name),
+												   is_separate_homebrew, is_separate_pirates,
+												   is_sort_homebrew, is_sort_pirates, is_sort_subfolders, 
 												   subfolders, exclude_tags)
 			else:
 				target_folder = os.path.dirname(file_name)
