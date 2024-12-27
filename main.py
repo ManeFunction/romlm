@@ -227,7 +227,7 @@ def mane():
 			if is_log_enabled:
 				print("Processing:" + file_name)
 	
-			# Sorting option
+			# Sorting options
 			if is_sort_enabled:
 				if is_reverse_sort:
 					target_folder = '.'
@@ -236,7 +236,7 @@ def mane():
 			else:
 				target_folder = os.path.dirname(file_name)
 	
-			# Extracting option
+			# Extracting block
 			if is_unpacking_enabled:
 				if file_name.endswith(".7z"):
 					with py7zr.SevenZipFile(file_name, 'r') as archive:
@@ -245,7 +245,7 @@ def mane():
 					with zipfile.ZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
 				os.remove(file_name)
-			# Packing option
+			# Packing block
 			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
 				if is_log_enabled:
 					print("Packing:", file_name)
