@@ -42,11 +42,8 @@ def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -
 	return folder_name
 
 def remove_empty_subfolders(path, is_log_enabled):
-	# Walk through the directory tree from the bottom up
 	for dirpath, dirnames, filenames in os.walk(path, topdown=False):
-		# If there are no files and no subdirectories, remove this directory
 		if not dirnames and not filenames:
-			# Make sure we don't remove the root directory itself if that's not desired
 			if dirpath != path:
 				os.rmdir(dirpath)
 				if is_log_enabled:
