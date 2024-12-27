@@ -41,6 +41,15 @@ def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -
 	create_if_not_exist(folder_name)
 	return folder_name
 
+def remove_meta_files(path, is_log_enabled):
+	for dirpath, dirnames, filenames in os.walk(path):
+		for f in filenames:
+			if f.lower() in ("desktop.ini", "thumbs.db", ".ds_store"):
+				file_path = os.path.join(dirpath, f)
+				os.remove(file_path)
+				if is_log_enabled:
+					print(f"Removed meta file: {file_path}")
+
 def remove_empty_subfolders(path, is_log_enabled):
 	for dirpath, dirnames, filenames in os.walk(path, topdown=False):
 		if not dirnames and not filenames:
@@ -258,6 +267,7 @@ def mane():
 			else:
 				shutil.move(file_name, os.path.join(target_folder, os.path.basename(str(file_name))))
 	
+		remove_meta_files(".", is_log_enabled)
 		remove_empty_subfolders(".", is_log_enabled)
 
 	print(">> DONE!")
