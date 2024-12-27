@@ -23,10 +23,26 @@ def get_lettered_folder_name(filename) -> str:
 def try_add_subfolder(is_sort_subfolders, folder_name, filename) -> str:
 	return (folder_name + "/" + get_lettered_folder_name(filename)) if is_sort_subfolders else folder_name
 
+def get_tags_from_filename(filename: str) -> list[str]:
+	name_no_ext = os.path.splitext(filename)[0]
+	groups = re.findall(r'\((.*?)\)', name_no_ext)
+	all_tags = []
+	for g in groups:
+		split_tags = [t.strip() for t in g.split(',')]
+		all_tags.extend(split_tags)
+	return all_tags
+
 def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -> str:
-	file_name_lower = filename.lower()
-	if 'homebrew' in file_name_lower or 'aftermarket' in file_name_lower:
+	file_tags = get_tags_from_filename(filename)
+	file_name_lower = [tag.lower() for tag in file_tags]
+	
+	# Check for 'homebrew' or 'aftermarket' tags
+	if is_sort_homebrew and (
+			"homebrew" in file_name_lower or "aftermarket" in file_name_lower
+	):
 		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
+
+	# Check for any user-defined 'subfolders' value matches any tag.
 	elif subfolders is not None:
 		found_subfolder = ""
 		for subfolder in subfolders:
@@ -34,10 +50,12 @@ def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -
 				found_subfolder = "!" + subfolder
 				break
 		folder_name = try_add_subfolder(is_sort_subfolders, found_subfolder, filename) \
-			if found_subfolder != "" \
-			else get_lettered_folder_name(filename)
+			if found_subfolder != "" else get_lettered_folder_name(filename)
+
+	# Default to alphabetical folder
 	else:
 		folder_name = get_lettered_folder_name(filename)
+
 	create_if_not_exist(folder_name)
 	return folder_name
 
