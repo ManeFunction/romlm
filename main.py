@@ -247,13 +247,14 @@ def mane():
 				os.remove(file_name)
 			# Packing block
 			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
+				archive_path = os.path.join(target_folder, os.path.basename(file_name))
 				if is_log_enabled:
 					print("Packing:", file_name)
 				if packing_format == "7z":
-					with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
+					with py7zr.SevenZipFile(str(archive_path) + ".7z", 'w') as archive:
 						archive.write(file_name, arcname=os.path.basename(file_name))
 				elif packing_format == "zip":
-					with zipfile.ZipFile(file_name + ".zip", 'w', zipfile.ZIP_DEFLATED) as archive:
+					with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
 						archive.write(file_name, arcname=os.path.basename(file_name))
 				os.remove(file_name)
 			# Execute sorting
