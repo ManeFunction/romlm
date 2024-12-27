@@ -30,15 +30,15 @@ def get_tags_from_filename(filename: str) -> list[str]:
 	for g in groups:
 		split_tags = [t.strip() for t in g.split(',')]
 		all_tags.extend(split_tags)
-	return all_tags
+	return [tag.lower() for tag in all_tags]
 
-def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -> str:
+def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders, excludes) -> str:
 	file_tags = get_tags_from_filename(filename)
-	file_name_lower = [tag.lower() for tag in file_tags]
+	excludes = {exclude.lower() for exclude in excludes} if excludes is not None else None
 	
 	# Check for 'homebrew' or 'aftermarket' tags
 	if is_sort_homebrew and (
-			"homebrew" in file_name_lower or "aftermarket" in file_name_lower
+			"homebrew" in file_tags or "aftermarket" in file_tags
 	):
 		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
 
@@ -46,7 +46,7 @@ def get_new_folder(filename, is_sort_homebrew, is_sort_subfolders, subfolders) -
 	elif subfolders is not None:
 		found_subfolder = ""
 		for subfolder in subfolders:
-			if subfolder.lower() in file_name_lower:
+			if subfolder.lower() in file_tags and (excludes is None or not bool(excludes.intersection(file_tags))):
 				found_subfolder = "!" + subfolder
 				break
 		folder_name = try_add_subfolder(is_sort_subfolders, found_subfolder, filename) \
@@ -168,6 +168,7 @@ def mane():
 	is_log_enabled = False
 	is_remove_duplicates = False
 	subfolders = None
+	exclude_tags = None
 	input_folder = "."
 
 	# Parse command line arguments
@@ -214,6 +215,15 @@ def mane():
 			else:
 				print("Error: --subfolders requires a comma-separated list of subfolders.")
 				sys.exit(1)
+		elif arg in ("-e", "--exclude"):
+			if i+1 < len(args):
+				exclude_tags = args[i+1].split(",")
+				if is_log_enabled:
+					print("Exclude tags:", exclude_tags)
+				skip_next = True
+			else:
+				print("Error: --exclude requires a comma-separated list of tags.")
+				sys.exit(1)
 		elif arg in ("-i", "--input"):
 			if i+1 < len(args):
 				input_folder = args[i+1]
@@ -240,6 +250,9 @@ def mane():
 	os.chdir(input_folder)
 	print(f"Current working directory set to: {os.getcwd()}")
 
+	if exclude_tags is not None and subfolders is None:
+		print("Warning: You cannot use --exclude without --subfolders. Option ignored.")
+
 	# Get files list
 	files_list = glob.glob("**/*.*", recursive=True)
 
@@ -265,7 +278,8 @@ def mane():
 				if is_reverse_sort:
 					target_folder = '.'
 				else:
-					target_folder = get_new_folder(os.path.basename(file_name), is_sort_homebrew, is_sort_subfolders, subfolders)
+					target_folder = get_new_folder(os.path.basename(file_name), is_sort_homebrew, is_sort_subfolders, 
+												   subfolders, exclude_tags)
 			else:
 				target_folder = os.path.dirname(file_name)
 	
