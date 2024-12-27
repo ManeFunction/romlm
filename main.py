@@ -251,10 +251,10 @@ def mane():
 					print("Packing:", file_name)
 				if packing_format == "7z":
 					with py7zr.SevenZipFile(file_name + ".7z", 'w') as archive:
-						archive.write(file_name)
+						archive.write(file_name, arcname=os.path.basename(file_name))
 				elif packing_format == "zip":
 					with zipfile.ZipFile(file_name + ".zip", 'w', zipfile.ZIP_DEFLATED) as archive:
-						archive.write(file_name, os.path.basename(file_name))
+						archive.write(file_name, arcname=os.path.basename(file_name))
 				os.remove(file_name)
 			# Execute sorting
 			else:
