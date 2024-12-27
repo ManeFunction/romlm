@@ -170,6 +170,7 @@ def mane():
 	subfolders = None
 	input_folder = "."
 
+	# Parse command line arguments
 	args = sys.argv[1:]
 	skip_next = False
 	for i, arg in enumerate(args):
@@ -221,6 +222,7 @@ def mane():
 				print("Error: --input requires a folder path.")
 				sys.exit(1)
 
+	# Check for conflicting options
 	if is_unpacking_enabled is True and is_packing_enabled is True:
 		print("Error: You cannot --extract and --pack at the same time.")
 		sys.exit()
