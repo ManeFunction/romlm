@@ -205,6 +205,16 @@ def clean_duplicates(file_list, is_log_enabled):
 		Example: (1, 2, 3) => 001002003
 		"""
 		return int("".join(f"{v:03}" for v in version_tuple))
+	
+	# --------------------------------------------------
+	# Get date weight for comparison
+	# --------------------------------------------------
+	def get_date_weight(date_str) -> int:
+		"""
+		Convert a date string (YYYY-MM-DD) into a single integer for comparison.
+		Example: "1993-07-09" => 19930709
+		"""
+		return int(date_str.replace("-", ""))
 
 	# --------------------------------------------------
 	# Normal-file scoring: ( non_region_tags, no_world_tag, -region_coverage, min_region_index, -revision )
@@ -230,28 +240,28 @@ def clean_duplicates(file_list, is_log_enabled):
 		revision_weight = get_version_weight(revision)
 		
 		return (
-			non_region,        # more non_region tags => worse
-			has_not_world,     # has no 'world' tag => worse
-			-coverage,         # bigger coverage => better
-			min_idx,           # bigger min_idx => worse
-			-revision_weight   # bigger revision => better
+			non_region,
+			has_not_world,
+			-coverage,
+			min_idx,
+			-revision_weight
 		)
 
 	# --------------------------------------------------
-	# Beta/Proto scoring: ( -no_date_flag, -region_coverage, -beta_number, non_region_tags )
+	# Beta/Proto scoring: ( -latest_date, -region_coverage, -beta_number, non_region_tags )
 	# --------------------------------------------------
 	def score_beta_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, _ = get_region_coverage_and_min_index(tags_list)
 
-		# Check if there's a date anywhere in the Beta/Proto tags
-		# or a separate date tag. If found, no_date_flag=0
-		# If not found, no_date_flag=1 => that is "better"
-		has_date = False
+		best_date_weight = 0
 		beta_number = (0,)
 		for t in tags_list:
+			# check if it's a date tag
 			if parse_date_yyyy_mm_dd(t):
-				has_date = True
+				date_weight = get_date_weight(t)
+				if date_weight > best_date_weight:
+					best_date_weight = date_weight
 			# check if it's a Beta/Proto tag with a numeric suffix
 			m = re.match(r"^(?:(beta|proto|sample)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
@@ -260,15 +270,14 @@ def clean_duplicates(file_list, is_log_enabled):
 				if version > beta_number:
 					beta_number = version
 
-		no_date_flag = 0 if has_date else 1
 		non_region = count_non_region_tags(tags_list)
 		version_weight = get_version_weight(beta_number)
 		
 		return (
-			-no_date_flag,    # no_date_flag set => better
-			-coverage,        # coverage bigger => better
-			-version_weight,  # beta_number bigger => better
-			non_region        # more non_region tags => worse
+			-best_date_weight,
+			-coverage,
+			-version_weight,
+			non_region
 		)
 
 	# --------------------------------------------------
