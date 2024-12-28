@@ -255,7 +255,7 @@ def mane():
 	# Check for conflicting options
 	if is_unpacking_enabled is True and is_packing_enabled is True:
 		print("Error: You cannot --extract and --pack at the same time.")
-		sys.exit()
+		sys.exit(1)
 
 	if (is_sort_enabled is False
 			and is_unpacking_enabled is False
