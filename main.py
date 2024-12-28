@@ -5,6 +5,8 @@ import shutil
 import glob
 import py7zr
 import zipfile
+import colorama
+from colorama import Fore, Style
 from tqdm import tqdm
 from multiprocessing import Process, freeze_support
 
@@ -98,68 +100,274 @@ def get_base_name(filename: str) -> str:
 	else:
 		base = name_no_ext.strip()
 	return base
-
-def is_pure_region(fname, region):
-	name_no_ext = os.path.splitext(fname)[0]
-	groups = re.findall(r'\(.*?\)', name_no_ext)
-	return len(groups) == 1 and groups[0] == f"({region})"
-
-def try_keep_pure_region(paths, region, files_to_keep, is_log_enabled):
-	# Try to find a pure region file for the given region, keep one, remove others.
-	# Returns True if a pure region file was found and handled, otherwise False.
-	pure_region_files = [p for p in paths if is_pure_region(os.path.basename(p), region)]
-	if pure_region_files:
-		keep = pure_region_files[0]
-		files_to_keep.add(keep)
-		for p in paths:
-			if p != keep:
-				if is_log_enabled:
-					print(f"Removing: {os.path.basename(p)}")
-				os.remove(p)
-		return True
-	return False
-
+		
 def clean_duplicates(file_list, is_log_enabled):
+	"""
+    For each distinct base name (game):
+      1) Partition into normal vs beta/proto.
+         - If normal exists => remove all beta/proto.
+      2) Among normal => pick exactly one best-scored normal file:
+         - Region coverage (more is better)
+         - Fewer non-region tags
+         - Better (lower) region priority index
+         - Higher revision
+      3) If no normal => pick exactly one best-scored beta/proto:
+         - Region coverage (more is better)
+         - No date is better than having a date
+         - Higher numeric suffix is better
+         - Fewer non-region tags
+      4) Remove the rest. Never remove all for a given game; if we end up with none, keep them all.
+    """
+
 	file_list = list(file_list)
-	
 	by_basename = {}
+
+	# Group files by base name
 	for f in file_list:
 		fname = os.path.basename(f)
 		base = get_base_name(fname)
-		if base not in by_basename:
-			by_basename[base] = []
-		by_basename[base].append(f)
+		by_basename.setdefault(base, []).append(f)
 
-	print(">> Removing duplicates safely... \nTotal ROMs:", len(file_list), "\nActual games:", len(by_basename))
+	print(
+		">> Removing duplicates safely... \nTotal ROMs:",
+		len(file_list),
+		"\nActual games:",
+		len(by_basename),
+	)
 
 	files_to_keep = set()
-	regions_priority = ["World", "USA", "Europe", "Japan"]
 
+	region_priority = ["world", "usa", "europe", "japan"]
+
+	# --------------------------------------------------
+	# Helper: parse date like (1993-07-09)
+	# --------------------------------------------------
+	def parse_date_yyyy_mm_dd(tag: str) -> bool:
+		"""
+        Return True if tag looks like YYYY-MM-DD, else False.
+        We won't parse the integer, we just treat "has date" as a boolean.
+        """
+		return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", tag))
+
+	# --------------------------------------------------
+	# Identify if file is Beta/Proto/Sample
+	# --------------------------------------------------
+	def is_beta_proto_file(fpath):
+		tags_list = get_tags_from_filename(os.path.basename(fpath))
+		for t in tags_list:
+			# If it starts with "beta", "proto", or "sample", we treat it as Beta/Proto
+			if t.startswith("beta") or t.startswith("proto") or t.startswith("sample"):
+				return True
+		return False
+
+	# --------------------------------------------------
+	# Region coverage + min region index
+	# --------------------------------------------------
+	def get_region_coverage_and_min_index(tags_list):
+		"""
+        Returns (coverage, min_index) where:
+          coverage = number of recognized region tags
+          min_index = the lowest index among recognized tags (or len(region_priority) if none)
+        Example: if tags_list has ["usa", "europe"], coverage=2, min_index=1 ("usa")
+        """
+		recognized = [r for r in tags_list if r in region_priority]
+		coverage = len(recognized)
+		if coverage == 0:
+			return 0, len(region_priority)
+		# find the lowest region index among them
+		min_i = min(region_priority.index(r) for r in recognized)
+		return coverage, min_i
+
+	# --------------------------------------------------
+	# Count how many "non-region" tags (excluding rev, beta/proto, sample, known region)
+	# --------------------------------------------------
+	def count_non_region_tags(tags_list):
+		count = 0
+		for t in tags_list:
+			if t in region_priority:
+				continue
+			if t.startswith("rev"):
+				continue
+			if t.startswith("beta") or t.startswith("proto") or t.startswith("sample"):
+				continue
+			if t in ["en", "fr", "de", "es", "it", "nl", "pt", "sv", "no", "da", "fi"]:
+				continue
+			# anything else is "extra"
+			count += 1
+		return count
+
+	# --------------------------------------------------
+	# Normal-file scoring: ( non_region_tags, no_world_tag, -region_coverage, min_region_index, -revision )
+	# --------------------------------------------------
+	def score_normal_file(fpath):
+		tags_list = get_tags_from_filename(os.path.basename(fpath))
+		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
+		
+		has_not_world = 1
+		if "world" in tags_list:
+			has_not_world = 0
+			
+		revision = 0
+		# parse "rev N"
+		for t in tags_list:
+			m = re.match(r"^rev\s*(\d+)$", t)
+			if m:
+				n = int(m.group(1))
+				if n > revision:
+					revision = n
+					
+		non_region = count_non_region_tags(tags_list)
+		
+		return (
+			non_region,     # more non_region tags => worse
+			has_not_world,  # has no 'world' tag => worse
+			-coverage,      # bigger coverage => better
+			min_idx,        # bigger min_idx => worse
+			-revision       # bigger revision => better
+		)
+
+	# --------------------------------------------------
+	# Beta/Proto scoring: ( -no_date_flag, -region_coverage, -beta_number, non_region_tags )
+	# --------------------------------------------------
+	def score_beta_file(fpath):
+		tags_list = get_tags_from_filename(os.path.basename(fpath))
+		coverage, _ = get_region_coverage_and_min_index(tags_list)
+
+		# Check if there's a date anywhere in the Beta/Proto tags
+		# or a separate date tag. If found, no_date_flag=0
+		# If not found, no_date_flag=1 => that is "better"
+		has_date = False
+		beta_number = 0
+		for t in tags_list:
+			if parse_date_yyyy_mm_dd(t):
+				has_date = True
+			# check if it's a Beta/Proto tag with a numeric suffix
+			m = re.match(r"^(beta|proto|sample)\s+(\d+)$", t)
+			if m:
+				n = int(m.group(2))
+				beta_number = max(beta_number, n)
+				# if there's no numeric suffix => 0 is default, no problem
+
+		no_date_flag = 0 if has_date else 1
+		non_region = count_non_region_tags(tags_list)
+		
+		return (
+			-no_date_flag,  # no_date_flag set => better
+			-coverage,      # coverage bigger => better
+			-beta_number,   # beta_number bigger => better
+			non_region      # more non_region tags => worse
+		)
+
+	# --------------------------------------------------
+	# Print list of files in a green
+	# --------------------------------------------------
+	def print_files_list(files_list):
+		for file in files_list:
+			print(f" - {Fore.GREEN}{os.path.basename(file)}{Style.RESET_ALL}")
+
+	# --------------------------------------------------
+	# MAIN LOOP
+	# --------------------------------------------------
 	if is_log_enabled:
-		progress = by_basename.items()
+		groups_iter = by_basename.items()
 	else:
-		progress = tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
+		groups_iter = tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
 
-	for base, paths in progress:
-		if len(paths) > 1:
-			# Try each region in priority order
-			found = False
-			for region in regions_priority:
-				if try_keep_pure_region(paths, region, files_to_keep, is_log_enabled):
-					found = True
-					break
-
-			if not found:
-				# Neither USA, Europe nor Japan pure versions found
-				if is_log_enabled:
-					print(f"Warning: Cannot decide which file to keep for base name '{base}':")
-				for p in paths:
-					if is_log_enabled:
-						print(" - ", os.path.basename(p))
-					files_to_keep.add(p)
-		else:
+	for base, paths in groups_iter:
+		if len(paths) == 1:
+			# Only one file => trivially keep it
 			files_to_keep.add(paths[0])
+			continue
 
+		# Partition into normal vs. beta/proto
+		normal_files = []
+		beta_proto_files = []
+		for p in paths:
+			if is_beta_proto_file(p):
+				beta_proto_files.append(p)
+			else:
+				normal_files.append(p)
+
+		if normal_files:
+			# Remove all Beta/Proto
+			chosen_set = normal_files
+			for bp in beta_proto_files:
+				if is_log_enabled:
+					print(f"Removing all Beta/Proto: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL} "
+						  f"| >> Has {len(normal_files)} release(s):")
+					print_files_list(normal_files)
+				os.remove(bp)
+		else:
+			# No normal => only Beta/Proto
+			# Pick exactly one best-scored
+			if len(beta_proto_files) == 1:
+				files_to_keep.add(beta_proto_files[0])
+				continue
+
+			best_bp = None
+			best_score = None
+			for bp in beta_proto_files:
+				sc = score_beta_file(bp)
+				if (best_score is None) or (sc < best_score):
+					best_score = sc
+					best_bp = bp
+
+			keep_set = {best_bp}
+			for bp in beta_proto_files:
+				if bp != best_bp:
+					if is_log_enabled:
+						print(f"Removing earlier Beta/Proto: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL} "
+							  f"| >> Last: {Fore.GREEN}{os.path.basename(best_bp)}{Style.RESET_ALL}")
+					os.remove(bp)
+
+			# safety check: never remove all
+			if not keep_set:
+				# fallback => keep them all
+				for p in beta_proto_files:
+					files_to_keep.add(p)
+			else:
+				for f in keep_set:
+					files_to_keep.add(f)
+			continue
+
+		# If chosen_set is empty for some reason, fallback => keep them all
+		if not chosen_set:
+			for p in paths:
+				files_to_keep.add(p)
+			continue
+
+		# Among the chosen normal set, pick exactly ONE best file by score
+		if len(chosen_set) == 1:
+			files_to_keep.add(chosen_set[0])
+			continue
+
+		best_normal = None
+		best_score = None
+		for nf in chosen_set:
+			sc = score_normal_file(nf)
+			if (best_score is None) or (sc < best_score):
+				best_score = sc
+				best_normal = nf
+
+		# remove all others
+		keep_set = {best_normal}
+		for nf in chosen_set:
+			if nf != best_normal:
+				if is_log_enabled:
+					print(f"Removing duplicate: {Fore.RED}{os.path.basename(nf)}{Style.RESET_ALL} "
+						  f"| >> Best: {Fore.GREEN}{os.path.basename(best_normal)}{Style.RESET_ALL}")
+				os.remove(nf)
+
+		# safety check
+		if not keep_set:
+			# fallback => keep them all
+			for f in chosen_set:
+				files_to_keep.add(f)
+		else:
+			for f in keep_set:
+				files_to_keep.add(f)
+
+	# Return only files we decided to keep
 	return [f for f in file_list if f in files_to_keep]
 
 def is_next_optional_parameter(args, i) -> bool:
@@ -183,6 +391,8 @@ def mane():
 	subfolders = None
 	exclude_tags = None
 	input_folder = "."
+
+	colorama.init()
 
 	# Parse command line arguments
 	args = sys.argv[1:]
