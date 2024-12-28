@@ -425,7 +425,7 @@ def mane():
 				elif pack_param == "zip":
 					packing_format = "zip"
 				else:
-					print(f"Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.")
+					print(f"{Fore.RED}Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.{Style.RESET_ALL}")
 					sys.exit(1)
 				skip_next = True
 		elif arg in ("-k", "--keep"):
@@ -456,7 +456,7 @@ def mane():
 					print("Subfolders:", subfolders)
 				skip_next = True
 			else:
-				print("Error: --subfolders requires a comma-separated list of subfolders.")
+				print(f"{Fore.RED}Error: --subfolders requires a comma-separated list of subfolders.{Style.RESET_ALL}")
 				sys.exit(1)
 		elif arg in ("-e", "--exclude"):
 			if i+1 < len(args):
@@ -465,36 +465,36 @@ def mane():
 					print("Exclude tags:", exclude_tags)
 				skip_next = True
 			else:
-				print("Error: --exclude requires a comma-separated list of tags.")
+				print(f"{Fore.RED}Error: --exclude requires a comma-separated list of tags.{Style.RESET_ALL}")
 				sys.exit(1)
 		elif arg in ("-i", "--input"):
 			if i+1 < len(args):
 				input_folder = args[i+1]
 				skip_next = True
 			else:
-				print("Error: --input requires a folder path.")
+				print(f"{Fore.RED}Error: --input requires a folder path.{Style.RESET_ALL}")
 				sys.exit(1)
 
 	# Check for conflicting options
 	if is_unpacking_enabled is True and is_packing_enabled is True:
-		print("Error: You cannot --extract and --pack at the same time.")
+		print(f"{Fore.RED}Error: You cannot --extract and --pack at the same time.{Style.RESET_ALL}")
 		sys.exit(1)
 
 	if (is_sort_enabled is False
 			and is_unpacking_enabled is False
 			and is_packing_enabled is False
 			and is_remove_duplicates is False):
-		print("Nothing to do...")
+		print(f"{Fore.YELLOW}Nothing to do...{Style.RESET_ALL}")
 		sys.exit()
 
 	if not os.path.exists(input_folder):
-		print(f"Error: The specified input folder '{input_folder}' does not exist.")
+		print(f"{Fore.RED}Error: The specified input folder '{input_folder}' does not exist.{Style.RESET_ALL}")
 		sys.exit(1)
 	os.chdir(input_folder)
 	print(f"Current working directory set to: {os.getcwd()}")
 
 	if exclude_tags is not None and subfolders is None:
-		print("Warning: You cannot use --exclude without --subfolders. Option ignored.")
+		print(f"{Fore.YELLOW}Warning: You cannot use --exclude without --subfolders. Option ignored.{Style.RESET_ALL}")
 
 	# Get files list
 	files_list = glob.glob("**/*.*", recursive=True)
@@ -514,7 +514,7 @@ def mane():
 	
 		for file_name in progress:
 			if is_log_enabled:
-				print("Processing:" + file_name)
+				print(f"Processing: {Fore.GREEN}{os.path.basename(file_name)}{Style.RESET_ALL}")
 	
 			# Sorting options
 			if is_sort_enabled:
@@ -540,8 +540,6 @@ def mane():
 			# Packing block
 			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
 				archive_path = os.path.join(target_folder, os.path.basename(file_name))
-				if is_log_enabled:
-					print("Packing:", file_name)
 				if packing_format == "7z":
 					with py7zr.SevenZipFile(str(archive_path) + ".7z", 'w') as archive:
 						archive.write(file_name, arcname=os.path.basename(file_name))
