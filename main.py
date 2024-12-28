@@ -195,6 +195,16 @@ def clean_duplicates(file_list, is_log_enabled):
 			# anything else is "extra"
 			count += 1
 		return count
+	
+	# --------------------------------------------------
+	# Get version weight for comparison
+	# --------------------------------------------------
+	def get_version_weight(version_tuple) -> int:
+		"""
+		Convert a version tuple (major, minor, patch) into a single integer for comparison.
+		Example: (1, 2, 3) => 001002003
+		"""
+		return int("".join(f"{v:03}" for v in version_tuple))
 
 	# --------------------------------------------------
 	# Normal-file scoring: ( non_region_tags, no_world_tag, -region_coverage, min_region_index, -revision )
@@ -207,23 +217,24 @@ def clean_duplicates(file_list, is_log_enabled):
 		if "world" in tags_list:
 			has_not_world = 0
 			
-		revision = 0
-		# parse "rev N"
+		revision = (0,)
 		for t in tags_list:
-			m = re.match(r"^rev\s*(\d+(?:\.\d+)?)$", t)
+			m = re.match(r"^(?:rev\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
-				n = float(m.group(1))
-				if n > revision:
-					revision = n
+				version_str = m.group(1)
+				version = tuple(map(int, version_str.split('.')))
+				if version > revision:
+					revision = version
 					
 		non_region = count_non_region_tags(tags_list)
+		revision_weight = get_version_weight(revision)
 		
 		return (
-			non_region,     # more non_region tags => worse
-			has_not_world,  # has no 'world' tag => worse
-			-coverage,      # bigger coverage => better
-			min_idx,        # bigger min_idx => worse
-			-revision       # bigger revision => better
+			non_region,        # more non_region tags => worse
+			has_not_world,     # has no 'world' tag => worse
+			-coverage,         # bigger coverage => better
+			min_idx,           # bigger min_idx => worse
+			-revision_weight   # bigger revision => better
 		)
 
 	# --------------------------------------------------
@@ -237,25 +248,27 @@ def clean_duplicates(file_list, is_log_enabled):
 		# or a separate date tag. If found, no_date_flag=0
 		# If not found, no_date_flag=1 => that is "better"
 		has_date = False
-		beta_number = 0
+		beta_number = (0,)
 		for t in tags_list:
 			if parse_date_yyyy_mm_dd(t):
 				has_date = True
 			# check if it's a Beta/Proto tag with a numeric suffix
-			m = re.match(r"^(beta|proto|sample)\s+(\d+(?:\.\d+)?)$", t)
+			m = re.match(r"^(?:(beta|proto|sample)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
-				n = float(m.group(2))
-				beta_number = max(beta_number, n)
-				# if there's no numeric suffix => 0 is default, no problem
+				version_str = m.group(2)
+				version = tuple(map(int, version_str.split('.')))
+				if version > beta_number:
+					beta_number = version
 
 		no_date_flag = 0 if has_date else 1
 		non_region = count_non_region_tags(tags_list)
+		version_weight = get_version_weight(beta_number)
 		
 		return (
-			-no_date_flag,  # no_date_flag set => better
-			-coverage,      # coverage bigger => better
-			-beta_number,   # beta_number bigger => better
-			non_region      # more non_region tags => worse
+			-no_date_flag,    # no_date_flag set => better
+			-coverage,        # coverage bigger => better
+			-version_weight,  # beta_number bigger => better
+			non_region        # more non_region tags => worse
 		)
 
 	# --------------------------------------------------
