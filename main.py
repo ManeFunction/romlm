@@ -137,7 +137,9 @@ def clean_duplicates(file_list, is_log_enabled):
 
 	files_to_keep = set()
 
-	region_priority = ["world", "usa", "europe", "japan"]
+	top_region_priority = "world"
+	region_priority = ["usa", "europe"]
+	asian_regions = ["japan", "asia", "china", "korea"]
 
 	# --------------------------------------------------
 	# Helper: parse date like (1993-07-09)
@@ -170,6 +172,11 @@ def clean_duplicates(file_list, is_log_enabled):
           min_index = the lowest index among recognized tags (or len(region_priority) if none)
         Example: if tags_list has ["usa", "europe"], coverage=2, min_index=1 ("usa")
         """
+		# Check if it's a top region priority
+		for t in tags_list:
+			if t == top_region_priority:
+				return len(region_priority), 0
+		# Check if it's a recognized prioritized region
 		recognized = [r for r in tags_list if r in region_priority]
 		coverage = len(recognized)
 		if coverage == 0:
@@ -177,6 +184,22 @@ def clean_duplicates(file_list, is_log_enabled):
 		# find the lowest region index among them
 		min_i = min(region_priority.index(r) for r in recognized)
 		return coverage, min_i
+	
+	# --------------------------------------------------
+	# Is ROM from an Asian region?
+	# --------------------------------------------------
+	def is_asian_region_and_not_en(tags_list):
+		"""
+		Returns True if the ROM is from an Asian region and not in English.
+		"""
+		is_asian = False
+		is_en = False
+		for t in tags_list:
+			if t in asian_regions:
+				is_asian = True
+			elif t == "en":
+				is_en = True
+		return is_asian and not is_en
 
 	# --------------------------------------------------
 	# Count how many "non-region" tags (excluding rev, beta/proto, sample, known region)
@@ -184,7 +207,11 @@ def clean_duplicates(file_list, is_log_enabled):
 	def count_non_region_tags(tags_list):
 		count = 0
 		for t in tags_list:
+			if t == top_region_priority:
+				continue
 			if t in region_priority:
+				continue
+			if t in asian_regions:
 				continue
 			if t.startswith("rev"):
 				continue
@@ -217,15 +244,11 @@ def clean_duplicates(file_list, is_log_enabled):
 		return int(date_str.replace("-", ""))
 
 	# --------------------------------------------------
-	# Normal-file scoring: ( non_region_tags, no_world_tag, -region_coverage, min_region_index, -revision )
+	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -revision )
 	# --------------------------------------------------
 	def score_normal_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
-		
-		has_not_world = 1
-		if "world" in tags_list:
-			has_not_world = 0
 			
 		revision = (0,)
 		for t in tags_list:
@@ -239,9 +262,12 @@ def clean_duplicates(file_list, is_log_enabled):
 		non_region = count_non_region_tags(tags_list)
 		revision_weight = get_version_weight(revision)
 		
+		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
+		if is_asian_region_and_not_en(tags_list):
+			non_region += 2
+		
 		return (
 			non_region,
-			has_not_world,
 			-coverage,
 			min_idx,
 			-revision_weight
