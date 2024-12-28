@@ -210,9 +210,9 @@ def clean_duplicates(file_list, is_log_enabled):
 		revision = 0
 		# parse "rev N"
 		for t in tags_list:
-			m = re.match(r"^rev\s*(\d+)$", t)
+			m = re.match(r"^rev\s*(\d+(?:\.\d+)?)$", t)
 			if m:
-				n = int(m.group(1))
+				n = float(m.group(1))
 				if n > revision:
 					revision = n
 					
@@ -242,9 +242,9 @@ def clean_duplicates(file_list, is_log_enabled):
 			if parse_date_yyyy_mm_dd(t):
 				has_date = True
 			# check if it's a Beta/Proto tag with a numeric suffix
-			m = re.match(r"^(beta|proto|sample)\s+(\d+)$", t)
+			m = re.match(r"^(beta|proto|sample)\s+(\d+(?:\.\d+)?)$", t)
 			if m:
-				n = int(m.group(2))
+				n = float(m.group(2))
 				beta_number = max(beta_number, n)
 				# if there's no numeric suffix => 0 is default, no problem
 
