@@ -249,11 +249,26 @@ def clean_duplicates(file_list, is_log_enabled):
 		return int(date_str.replace("-", ""))
 
 	# --------------------------------------------------
-	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -revision )
+	# Get video format score for comparison (NTSC > none > PAL)
+	# --------------------------------------------------
+	def get_video_format_score(tags_list) -> int:
+		"""
+		Convert a video format tag into a single integer for comparison.
+		"""
+		for t in tags_list:
+			if t == "ntsc":
+				return 2
+			elif t == "pal":
+				return 0
+		return 1
+
+	# --------------------------------------------------
+	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -video_format, -revision )
 	# --------------------------------------------------
 	def score_normal_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
+		video_format_score = get_video_format_score(tags_list)
 			
 		# For Homebrew, assume that no explicit revision version is 1.0 (initial release)
 		# ...for retro ROMs, it's more likely "Rev 0" (initial release)
@@ -284,6 +299,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			non_region,
 			-coverage,
 			min_idx,
+			-video_format_score,
 			-revision_score
 		)
 
