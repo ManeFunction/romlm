@@ -279,9 +279,6 @@ def clean_duplicates(file_list, is_log_enabled):
 		# Compensate missed initial revision for Homebrew 
 		elif is_not_official and not revision_found:
 			non_region += 1
-			print(f"Compensating missed revision for Homebrew: {fpath}")
-			
-		print(f"{fpath} - {coverage} - {min_idx} - {non_region} - {revision_weight}")
 		
 		return (
 			non_region,
