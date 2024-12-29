@@ -229,9 +229,9 @@ def clean_duplicates(file_list, is_log_enabled):
 		return count
 	
 	# --------------------------------------------------
-	# Get version weight for comparison
+	# Get version score for comparison
 	# --------------------------------------------------
-	def get_version_weight(version_tuple) -> int:
+	def get_version_score(version_tuple) -> int:
 		"""
 		Convert a version tuple (major, minor, patch) into a single integer for comparison.
 		Example: (1, 2, 3, 4) => 001002003004
@@ -239,9 +239,9 @@ def clean_duplicates(file_list, is_log_enabled):
 		return int("".join(f"{v:03}" for v in version_tuple))
 	
 	# --------------------------------------------------
-	# Get date weight for comparison
+	# Get date score for comparison
 	# --------------------------------------------------
-	def get_date_weight(date_str) -> int:
+	def get_date_score(date_str) -> int:
 		"""
 		Convert a date string (YYYY-MM-DD) into a single integer for comparison.
 		Example: "1993-07-09" => 19930709
@@ -271,7 +271,7 @@ def clean_duplicates(file_list, is_log_enabled):
 					revision = version
 					
 		non_region = count_non_region_tags(tags_list)
-		revision_weight = get_version_weight(revision)
+		revision_score = get_version_score(revision)
 		
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
 		if is_asian_region_and_not_en(tags_list):
@@ -284,7 +284,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			non_region,
 			-coverage,
 			min_idx,
-			-revision_weight
+			-revision_score
 		)
 
 	# --------------------------------------------------
@@ -294,14 +294,14 @@ def clean_duplicates(file_list, is_log_enabled):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, _ = get_region_coverage_and_min_index(tags_list)
 
-		best_date_weight = 0
+		best_date_score = 0
 		beta_number = (0,0,0,0)
 		for t in tags_list:
 			# check if it's a date tag
 			if parse_date_yyyy_mm_dd(t):
-				date_weight = get_date_weight(t)
-				if date_weight > best_date_weight:
-					best_date_weight = date_weight
+				date_score = get_date_score(t)
+				if date_score > best_date_score:
+					best_date_score = date_score
 			# check if it's a Beta/Proto tag with a numeric suffix
 			m = re.match(r"^(?:(beta|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
@@ -312,12 +312,12 @@ def clean_duplicates(file_list, is_log_enabled):
 					beta_number = version
 
 		non_region = count_non_region_tags(tags_list)
-		version_weight = get_version_weight(beta_number)
+		version_score = get_version_score(beta_number)
 		
 		return (
-			-best_date_weight,
+			-best_date_score,
 			-coverage,
-			-version_weight,
+			-version_score,
 			non_region
 		)
 
