@@ -121,31 +121,22 @@ def clean_duplicates(file_list, is_log_enabled):
       4) Remove the rest. Never remove all for a given game; if end up with none, keep them all.
     """
 
-	file_list = list(file_list)
-	by_basename = {}
-
-	# Group files by base name
-	for f in file_list:
-		fname = os.path.basename(f)
-		base = get_base_name(fname)
-		by_basename.setdefault(base, []).append(f)
-
-	print(
-		">> Removing duplicates safely... \nTotal ROMs:",
-		len(file_list),
-		"\nActual games:",
-		len(by_basename),
-	)
-
-	files_to_keep = set()
-
 	top_region_priority = "world"
 	region_priority = ["usa", "europe"]
 	asian_regions = ["japan", "asia", "china", "korea"]
 
-	# --------------------------------------------------
+	# Is ROM a part of multi-disc set?
+	def get_disc_number(tags_list) -> int:
+		"""
+		Returns '-1' if the ROM is not a part of a multi-disc set, or disc number otherwise.
+		"""
+		for t in tags_list:
+			m = re.match(r"(disc|disk)\s*(\d+)", t)
+			if m:
+				return int(m.group(2))
+		return -1
+
 	# Helper: parse date like (1993-07-09)
-	# --------------------------------------------------
 	def parse_date_yyyy_mm_dd(tag: str) -> bool:
 		"""
         Return True if tag looks like YYYY-MM-DD, else False.
@@ -153,9 +144,7 @@ def clean_duplicates(file_list, is_log_enabled):
         """
 		return bool(re.match(r"^\d{4}-\d{2}-\d{2}$", tag))
 
-	# --------------------------------------------------
 	# Identify if file is Beta/Proto/Sample
-	# --------------------------------------------------
 	def is_beta_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		for t in tags_list:
@@ -167,9 +156,7 @@ def clean_duplicates(file_list, is_log_enabled):
 				return True
 		return False
 
-	# --------------------------------------------------
 	# Region coverage + min region index
-	# --------------------------------------------------
 	def get_region_coverage_and_min_index(tags_list):
 		"""
         Returns (coverage, min_index) where:
@@ -190,9 +177,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		min_i = min(region_priority.index(r) for r in recognized)
 		return coverage, min_i
 	
-	# --------------------------------------------------
 	# Is ROM from an Asian region?
-	# --------------------------------------------------
 	def is_asian_region_and_not_en(tags_list):
 		"""
 		Returns True if the ROM is from an Asian region and not in English.
@@ -206,9 +191,7 @@ def clean_duplicates(file_list, is_log_enabled):
 				is_en = True
 		return is_asian and not is_en
 
-	# --------------------------------------------------
 	# Count how many "non-region" tags (excluding rev, beta/proto, sample, known region)
-	# --------------------------------------------------
 	def count_non_region_tags(tags_list):
 		count = 0
 		for t in tags_list:
@@ -228,9 +211,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			count += 1
 		return count
 	
-	# --------------------------------------------------
 	# Get version score for comparison
-	# --------------------------------------------------
 	def get_version_score(version_tuple) -> int:
 		"""
 		Convert a version tuple (major, minor, patch) into a single integer for comparison.
@@ -238,9 +219,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		"""
 		return int("".join(f"{v:03}" for v in version_tuple))
 	
-	# --------------------------------------------------
 	# Get date score for comparison
-	# --------------------------------------------------
 	def get_date_score(date_str) -> int:
 		"""
 		Convert a date string (YYYY-MM-DD) into a single integer for comparison.
@@ -248,9 +227,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		"""
 		return int(date_str.replace("-", ""))
 
-	# --------------------------------------------------
 	# Get video format score for comparison (NTSC > none > PAL)
-	# --------------------------------------------------
 	def get_video_format_score(tags_list) -> int:
 		"""
 		Convert a video format tag into a single integer for comparison.
@@ -262,9 +239,7 @@ def clean_duplicates(file_list, is_log_enabled):
 				return 0
 		return 1
 
-	# --------------------------------------------------
 	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -video_format, -revision )
-	# --------------------------------------------------
 	def score_normal_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
@@ -303,9 +278,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			-revision_score
 		)
 
-	# --------------------------------------------------
 	# Beta/Proto scoring: ( -latest_date, -region_coverage, -beta_number, non_region_tags )
-	# --------------------------------------------------
 	def score_beta_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, _ = get_region_coverage_and_min_index(tags_list)
@@ -337,22 +310,37 @@ def clean_duplicates(file_list, is_log_enabled):
 			non_region
 		)
 
-	# --------------------------------------------------
 	# Print list of files in a color
-	# --------------------------------------------------
 	def print_files_list(files_list, color):
 		for file in files_list:
 			print(f" - {color}{os.path.basename(file)}{Style.RESET_ALL}")
 			
-	# --------------------------------------------------
 	# Get a log iteration string formatted as "(N/M)"
-	# --------------------------------------------------
 	def n(idx) -> str:
 		return f"({idx}/{len(groups_iter)}) "
 
-	# --------------------------------------------------
+	# Group files by base name
+	file_list = list(file_list)
+	by_basename = {}
+
+	for f in file_list:
+		fname = os.path.basename(f)
+		base = get_base_name(fname)
+		disc = get_disc_number(get_tags_from_filename(fname))
+		if disc > -1:
+			base += f" (Disc {disc})"
+		by_basename.setdefault(base, []).append(f)
+
+	print(
+		">> Removing duplicates safely... \nTotal ROMs:",
+		len(file_list),
+		"\nActual games:",
+		len(by_basename),
+	)
+
+	files_to_keep = set()
+
 	# MAIN LOOP of removing duplicates
-	# --------------------------------------------------
 	if is_log_enabled:
 		groups_iter = by_basename.items()
 	else:
