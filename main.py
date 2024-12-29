@@ -34,21 +34,23 @@ def get_tags_from_filename(filename: str) -> list[str]:
 		all_tags.extend(split_tags)
 	return [tag.lower() for tag in all_tags]
 
+def is_homebrew(file_tags) -> bool:
+	return "homebrew" in file_tags or "aftermarket" in file_tags
+
+def is_pirate(file_tags) -> bool:
+	return "pirate" in file_tags or "unl" in file_tags
+
 def get_new_folder(filename, is_separate_homebrew, is_separate_pirates, 
 				   is_sort_homebrew, is_sort_pirates, is_sort_subfolders, subfolders, excludes) -> str:
 	file_tags = get_tags_from_filename(filename)
 	excludes = {exclude.lower() for exclude in excludes} if excludes is not None else None
 	
 	# Check for 'homebrew' or 'aftermarket' tags
-	if is_separate_homebrew and (
-			"homebrew" in file_tags or "aftermarket" in file_tags
-	):
+	if is_separate_homebrew and is_homebrew(file_tags):
 		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
 		
 	# Check for 'pirate' or 'unl' tags
-	elif is_separate_pirates and (
-			"pirate" in file_tags or "unl" in file_tags
-	):
+	elif is_separate_pirates and is_pirate(file_tags):
 		folder_name = try_add_subfolder(is_sort_pirates, "!Pirates", filename)
 
 	# Check for any user-defined 'subfolders' value matches any tag.
@@ -116,7 +118,7 @@ def clean_duplicates(file_list, is_log_enabled):
          - No date is better than having a date
          - Higher numeric suffix is better
          - Fewer non-region tags
-      4) Remove the rest. Never remove all for a given game; if we end up with none, keep them all.
+      4) Remove the rest. Never remove all for a given game; if end up with none, keep them all.
     """
 
 	file_list = list(file_list)
@@ -154,7 +156,7 @@ def clean_duplicates(file_list, is_log_enabled):
 	# --------------------------------------------------
 	# Identify if file is Beta/Proto/Sample
 	# --------------------------------------------------
-	def is_beta_proto_file(fpath):
+	def is_beta_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		for t in tags_list:
 			# If it starts with "beta", "proto", or "sample", we treat it as Beta/Proto
@@ -232,7 +234,7 @@ def clean_duplicates(file_list, is_log_enabled):
 	def get_version_weight(version_tuple) -> int:
 		"""
 		Convert a version tuple (major, minor, patch) into a single integer for comparison.
-		Example: (1, 2, 3) => 001002003
+		Example: (1, 2, 3, 4) => 001002003004
 		"""
 		return int("".join(f"{v:03}" for v in version_tuple))
 	
@@ -253,12 +255,18 @@ def clean_duplicates(file_list, is_log_enabled):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
 			
-		revision = (0,)
+		# For Homebrew, assume that no explicit revision version is 1.0 (initial release)
+		# ...for retro ROMs, it's more likely "Rev 0" (initial release)
+		is_not_official = is_homebrew(tags_list) or is_pirate(tags_list)
+		revision = (1,0,0,0) if is_not_official else (0,0,0,0)
+		revision_found = False
 		for t in tags_list:
 			m = re.match(r"^(?:rev\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
+				revision_found = True
 				version_str = m.group(1)
 				version = tuple(map(int, version_str.split('.')))
+				version += (0,) * (4 - len(version))  # ensure 4-tuple
 				if version > revision:
 					revision = version
 					
@@ -268,6 +276,12 @@ def clean_duplicates(file_list, is_log_enabled):
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
 		if is_asian_region_and_not_en(tags_list):
 			non_region += 2
+		# Compensate missed initial revision for Homebrew 
+		elif is_not_official and not revision_found:
+			non_region += 1
+			print(f"Compensating missed revision for Homebrew: {fpath}")
+			
+		print(f"{fpath} - {coverage} - {min_idx} - {non_region} - {revision_weight}")
 		
 		return (
 			non_region,
@@ -284,7 +298,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		coverage, _ = get_region_coverage_and_min_index(tags_list)
 
 		best_date_weight = 0
-		beta_number = (0,)
+		beta_number = (0,0,0,0)
 		for t in tags_list:
 			# check if it's a date tag
 			if parse_date_yyyy_mm_dd(t):
@@ -296,6 +310,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			if m:
 				version_str = m.group(2)
 				version = tuple(map(int, version_str.split('.')))
+				version += (0,) * (4 - len(version))  # ensure 4-tuple
 				if version > beta_number:
 					beta_number = version
 
@@ -345,7 +360,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		normal_files = []
 		beta_proto_files = []
 		for p in paths:
-			if is_beta_proto_file(p):
+			if is_beta_file(p):
 				beta_proto_files.append(p)
 			else:
 				normal_files.append(p)
