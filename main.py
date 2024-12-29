@@ -158,7 +158,10 @@ def clean_duplicates(file_list, is_log_enabled):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
 		for t in tags_list:
 			# If it starts with "beta", "proto", or "sample", we treat it as Beta/Proto
-			if t.startswith("beta") or t.startswith("proto") or t.startswith("sample"):
+			if (t.startswith("beta") 
+					or t.startswith("proto") 
+					or t.startswith("sample")
+					or t.startswith("demo")):
 				return True
 		return False
 
@@ -289,7 +292,7 @@ def clean_duplicates(file_list, is_log_enabled):
 				if date_weight > best_date_weight:
 					best_date_weight = date_weight
 			# check if it's a Beta/Proto tag with a numeric suffix
-			m = re.match(r"^(?:(beta|proto|sample)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
+			m = re.match(r"^(?:(beta|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
 			if m:
 				version_str = m.group(2)
 				version = tuple(map(int, version_str.split('.')))
