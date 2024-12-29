@@ -75,7 +75,7 @@ def remove_meta_files(path, is_log_enabled):
 				file_path = os.path.join(dirpath, f)
 				os.remove(file_path)
 				if is_log_enabled:
-					print(f"Removed meta file: {file_path}")
+					print(f"Removed meta file: {Fore.RED}{file_path}{Style.RESET_ALL}")
 
 def remove_empty_subfolders(path, is_log_enabled):
 	for dirpath, dirnames, filenames in os.walk(path, topdown=False):
@@ -83,13 +83,13 @@ def remove_empty_subfolders(path, is_log_enabled):
 			if dirpath != path:
 				os.rmdir(dirpath)
 				if is_log_enabled:
-					print(f"Removed empty folder: {dirpath}")
+					print(f"Removed empty folder: {Fore.RED}{dirpath}{Style.RESET_ALL}")
 				# Kinda cludgy, but keep removing empty parent folders until we hit the root, to clear empty trees
 				parent_dir = os.path.dirname(dirpath)
 				while parent_dir != path and not os.listdir(parent_dir):
 					os.rmdir(parent_dir)
 					if is_log_enabled:
-						print(f"Removed empty folder: {parent_dir}")
+						print(f"Removed empty folder: {Fore.RED}{parent_dir}{Style.RESET_ALL}")
 					parent_dir = os.path.dirname(parent_dir)
 
 def get_base_name(filename: str) -> str:
@@ -307,24 +307,35 @@ def clean_duplicates(file_list, is_log_enabled):
 		)
 
 	# --------------------------------------------------
-	# Print list of files in a green
+	# Print list of files in a color
 	# --------------------------------------------------
-	def print_files_list(files_list):
+	def print_files_list(files_list, color):
 		for file in files_list:
-			print(f" - {Fore.GREEN}{os.path.basename(file)}{Style.RESET_ALL}")
+			print(f" - {color}{os.path.basename(file)}{Style.RESET_ALL}")
+			
+	# --------------------------------------------------
+	# Get a log iteration string formatted as "(N/M)"
+	# --------------------------------------------------
+	def n(idx) -> str:
+		return f"({idx}/{len(groups_iter)}) "
 
 	# --------------------------------------------------
-	# MAIN LOOP
+	# MAIN LOOP of removing duplicates
 	# --------------------------------------------------
 	if is_log_enabled:
 		groups_iter = by_basename.items()
 	else:
 		groups_iter = tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
 
+	i = 0
 	for base, paths in groups_iter:
+		i += 1
+		
+		# Only one file => trivially keep it
 		if len(paths) == 1:
-			# Only one file => trivially keep it
 			files_to_keep.add(paths[0])
+			if is_log_enabled:
+				print(f"{n(i)}Single ROM: {Fore.GREEN}{os.path.basename(paths[0])}{Style.RESET_ALL}")
 			continue
 
 		# Partition into normal vs. beta/proto
@@ -339,17 +350,20 @@ def clean_duplicates(file_list, is_log_enabled):
 		if normal_files:
 			# Remove all Beta/Proto
 			chosen_set = normal_files
+			if is_log_enabled and beta_proto_files:
+				print(f"{n(i)}Removing all Betas: ")
+				print_files_list(beta_proto_files, Fore.RED)
+				print(f" | >> Has {len(normal_files)} release(s):")
+				print_files_list(normal_files, Fore.GREEN)
 			for bp in beta_proto_files:
-				if is_log_enabled:
-					print(f"Removing all Beta/Proto: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL} "
-						  f"| >> Has {len(normal_files)} release(s):")
-					print_files_list(normal_files)
 				os.remove(bp)
 		else:
 			# No normal => only Beta/Proto
 			# Pick exactly one best-scored
 			if len(beta_proto_files) == 1:
 				files_to_keep.add(beta_proto_files[0])
+				if is_log_enabled:
+					print(f"{n(i)}Single Beta: {Fore.GREEN}{os.path.basename(beta_proto_files[0])}{Style.RESET_ALL}")
 				continue
 
 			best_bp = None
@@ -364,8 +378,7 @@ def clean_duplicates(file_list, is_log_enabled):
 			for bp in beta_proto_files:
 				if bp != best_bp:
 					if is_log_enabled:
-						print(f"Removing earlier Beta/Proto: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL} "
-							  f"| >> Last: {Fore.GREEN}{os.path.basename(best_bp)}{Style.RESET_ALL}")
+						print(f"{n(i)}Removing earlier Beta: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL}")
 					os.remove(bp)
 
 			# safety check: never remove all
@@ -373,20 +386,30 @@ def clean_duplicates(file_list, is_log_enabled):
 				# fallback => keep them all
 				for p in beta_proto_files:
 					files_to_keep.add(p)
+				if is_log_enabled:
+					print(f"{n(i)}No latest Beta, keeping all:")
+					print_files_list(beta_proto_files, Fore.GREEN)
 			else:
 				for f in keep_set:
 					files_to_keep.add(f)
+				if is_log_enabled:
+					print(f"{n(i)}Latest Beta: {Fore.GREEN}{os.path.basename(best_bp)}{Style.RESET_ALL}")
 			continue
 
 		# If chosen_set is empty for some reason, fallback => keep them all
 		if not chosen_set:
 			for p in paths:
 				files_to_keep.add(p)
+			if is_log_enabled:
+				print(f"{n(i)}No release ROMs, keeping all Betas:")
+				print_files_list(paths, Fore.GREEN)
 			continue
 
 		# Among the chosen normal set, pick exactly ONE best file by score
 		if len(chosen_set) == 1:
 			files_to_keep.add(chosen_set[0])
+			if is_log_enabled:
+				print(f"{n(i)}Single release ROM: {Fore.GREEN}{os.path.basename(chosen_set[0])}{Style.RESET_ALL}")
 			continue
 
 		best_normal = None
@@ -402,8 +425,7 @@ def clean_duplicates(file_list, is_log_enabled):
 		for nf in chosen_set:
 			if nf != best_normal:
 				if is_log_enabled:
-					print(f"Removing duplicate: {Fore.RED}{os.path.basename(nf)}{Style.RESET_ALL} "
-						  f"| >> Best: {Fore.GREEN}{os.path.basename(best_normal)}{Style.RESET_ALL}")
+					print(f"{n(i)}Removing duplicate: {Fore.RED}{os.path.basename(nf)}{Style.RESET_ALL}")
 				os.remove(nf)
 
 		# safety check
@@ -411,9 +433,14 @@ def clean_duplicates(file_list, is_log_enabled):
 			# fallback => keep them all
 			for f in chosen_set:
 				files_to_keep.add(f)
+			if is_log_enabled:
+				print(f"{n(i)}No best ROM, keeping all:")
+				print_files_list(chosen_set, Fore.GREEN)
 		else:
 			for f in keep_set:
 				files_to_keep.add(f)
+			if is_log_enabled:
+				print(f"{n(i)}Best ROM: {Fore.GREEN}{os.path.basename(best_normal)}{Style.RESET_ALL}")
 
 	# Return only files we decided to keep
 	return [f for f in file_list if f in files_to_keep]
@@ -547,9 +574,11 @@ def mane():
 		else:
 			progress = tqdm(files_list, desc="Processing")
 	
+		i = 0
 		for file_name in progress:
+			i += 1
 			if is_log_enabled:
-				print(f"Processing: {Fore.GREEN}{os.path.basename(file_name)}{Style.RESET_ALL}")
+				print(f"({i}/{len(progress)}) Processing: {Fore.GREEN}{os.path.basename(file_name)}{Style.RESET_ALL}")
 	
 			# Sorting options
 			if is_sort_enabled:
@@ -572,6 +601,8 @@ def mane():
 					with zipfile.ZipFile(file_name, 'r') as archive:
 						archive.extractall(target_folder)
 				os.remove(file_name)
+				if is_log_enabled:
+					print(f" >> Unpacked to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}")
 			# Packing block
 			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
 				archive_path = os.path.join(target_folder, os.path.basename(file_name))
@@ -582,9 +613,13 @@ def mane():
 					with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
 						archive.write(file_name, arcname=os.path.basename(file_name))
 				os.remove(file_name)
+				if is_log_enabled:
+					print(f" >> Packed to: {Fore.BLUE}{archive_path}.{packing_format}{Style.RESET_ALL}")
 			# Execute sorting
 			else:
 				shutil.move(file_name, os.path.join(target_folder, os.path.basename(str(file_name))))
+				if is_log_enabled:
+					print(f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}")
 	
 		remove_meta_files(".", is_log_enabled)
 		remove_empty_subfolders(".", is_log_enabled)
