@@ -237,11 +237,10 @@ def clean_duplicates(file_list, action, is_log_enabled):
 		"""
 		Convert a video format tag into a single integer for comparison.
 		"""
-		for t in tags_list:
-			if t == "ntsc":
-				return 2
-			elif t == "pal":
-				return 0
+		if "ntsc" in tags_list:
+			return 2
+		if "pal" in tags_list:
+			return 0
 		return 1
 	
 	# Try to get version from tags list
@@ -258,13 +257,11 @@ def clean_duplicates(file_list, action, is_log_enabled):
 	
 	# Get the date score from tags list
 	def get_date_score(tags_list) -> int:
-		max_date_score = 0
 		for t in tags_list:
 			if parse_date_yyyy_mm_dd(t):
 				date_score = int(t.replace("-", ""))
-				if date_score > max_date_score:
-					max_date_score = date_score
-		return max_date_score
+				return date_score
+		return 0
 
 	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -video_format, -revision, -date )
 	def score_normal_file(fpath):
