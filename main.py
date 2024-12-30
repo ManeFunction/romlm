@@ -114,7 +114,7 @@ def get_base_name(filename: str) -> str:
 		base = name_no_ext.strip()
 	return base
 		
-def clean_duplicates(file_list, action, is_log_enabled):
+def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 	"""
     For each distinct base name (game):
       1) Partition into normal vs beta/proto.
@@ -220,7 +220,7 @@ def clean_duplicates(file_list, action, is_log_enabled):
 			if t in asian_regions:
 				continue
 			# Revisions and versions tags
-			if t.startswith("rev") or t.startswith("v") or re.match(r"^\d+(?:\.\d+){0,3}$", t):
+			if t.startswith("rev ") or re.match(r"^\d+(?:\.\d+){0,3}$", t):
 				continue
 			# Beta and other in-development tags
 			if t.startswith("beta") or t.startswith("alpha") or t.startswith("proto") or t.startswith("sample"):
@@ -284,6 +284,10 @@ def clean_duplicates(file_list, action, is_log_enabled):
 		if (is_homebrew(tags_list) or is_pirate(tags_list)) and not version_found:
 			version_score = 100000000000
 			non_region += 1
+			
+		if is_debug_log:
+			print(f"  >>> {fpath} (RELEASE): {Fore.MAGENTA}tags({non_region}), reg({coverage}: {min_idx}), "
+				  f"format({video_format_score}), v({version_score}:{date_score}){Style.RESET_ALL}")
 		
 		return (
 			non_region,
@@ -303,6 +307,10 @@ def clean_duplicates(file_list, action, is_log_enabled):
 		non_region = count_unknown_tags(tags_list)
 
 		version_score, _ = try_get_version_score(tags_list, beta_version_regex, beta_version_regex_group)
+		
+		if is_debug_log:
+			print(f"  >>> {fpath} (BETA): {Fore.MAGENTA}date({best_date_score}), reg({coverage}), v({version_score}), "
+				  f"tags({non_region}){Style.RESET_ALL}")
 		
 		return (
 			-best_date_score,
@@ -528,6 +536,7 @@ def mane():
 	is_packing_enabled = False
 	packing_format = "7z"
 	is_log_enabled = False
+	is_debug_log = False
 	is_remove_duplicates = False
 	remove_duplicates_action = Action.NOT_DEFINED
 	subfolders = None
@@ -591,6 +600,8 @@ def mane():
 				skip_next = True
 		elif arg in ("-l", "--log"):
 			is_log_enabled = True
+		elif arg == "--debug":
+			is_debug_log = True
 		elif arg in ("-r", "--remove-duplicates"):
 			is_remove_duplicates = True
 			if is_next_optional_parameter(args, i):
@@ -661,7 +672,7 @@ def mane():
 
 	# If duplicates removal is enabled, do it first
 	if is_remove_duplicates:
-		files_list = clean_duplicates(files_list, remove_duplicates_action, is_log_enabled)
+		files_list = clean_duplicates(files_list, remove_duplicates_action, is_log_enabled, is_debug_log)
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
 	# Process files
