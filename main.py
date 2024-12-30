@@ -3,7 +3,7 @@ import os
 import re
 import shutil
 import glob
-from enum import Enum
+from enum import Enum, Flag, auto
 import py7zr
 import zipfile
 import colorama
@@ -16,6 +16,11 @@ class Action(Enum):
 	ASK = 1
 	KEEP_ALL = 2
 	KEEP_ONE = 3
+	
+class CategoryOption(Flag):
+	HOMEBREW = auto()
+	PIRATES = auto()
+	SUBFOLDERS = auto()
 
 def create_if_not_exist(folder):
 	if not os.path.exists(folder):
@@ -47,18 +52,17 @@ def is_homebrew(file_tags) -> bool:
 def is_pirate(file_tags) -> bool:
 	return "pirate" in file_tags or "unl" in file_tags
 
-def get_new_folder(filename, is_separate_homebrew, is_separate_pirates, 
-				   is_sort_homebrew, is_sort_pirates, is_sort_subfolders, subfolders, excludes) -> str:
+def get_new_folder(filename, separation_options, sorting_options, subfolders, excludes) -> str:
 	file_tags = get_tags_from_filename(filename)
 	excludes = {exclude.lower() for exclude in excludes} if excludes is not None else None
 	
 	# Check for 'homebrew' or 'aftermarket' tags
-	if is_separate_homebrew and is_homebrew(file_tags):
-		folder_name = try_add_subfolder(is_sort_homebrew, "!Homebrew", filename)
+	if separation_options & CategoryOption.HOMEBREW and is_homebrew(file_tags):
+		folder_name = try_add_subfolder(sorting_options & CategoryOption.HOMEBREW, "!Homebrew", filename)
 		
 	# Check for 'pirate' or 'unl' tags
-	elif is_separate_pirates and is_pirate(file_tags):
-		folder_name = try_add_subfolder(is_sort_pirates, "!Pirates", filename)
+	elif separation_options & CategoryOption.PIRATES and is_pirate(file_tags):
+		folder_name = try_add_subfolder(sorting_options & CategoryOption.PIRATES, "!Pirates", filename)
 
 	# Check for any user-defined 'subfolders' value matches any tag.
 	elif subfolders is not None:
@@ -67,7 +71,7 @@ def get_new_folder(filename, is_separate_homebrew, is_separate_pirates,
 			if subfolder.lower() in file_tags and (excludes is None or not bool(excludes.intersection(file_tags))):
 				found_subfolder = "!" + subfolder
 				break
-		folder_name = try_add_subfolder(is_sort_subfolders, found_subfolder, filename) \
+		folder_name = try_add_subfolder(sorting_options & CategoryOption.SUBFOLDERS, found_subfolder, filename) \
 			if found_subfolder != "" else get_lettered_folder_name(filename)
 
 	# Default to alphabetical folder
@@ -526,12 +530,9 @@ def is_next_optional_parameter(args, i) -> bool:
 def mane():
 	print(">> Initializing...")
 
-	is_separate_homebrew = True
-	is_separate_pirates = True
+	separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
 	is_sort_enabled = False
-	is_sort_homebrew = False
-	is_sort_pirates = False
-	is_sort_subfolders = False
+	sort_options = CategoryOption(0)
 	is_reverse_sort = False
 	is_unpacking_enabled = False
 	is_packing_enabled = False
@@ -569,8 +570,15 @@ def mane():
 		elif arg in ("-k", "--keep"):
 			if is_next_optional_parameter(args, i):
 				keep_params = args[i+1]
-				is_separate_homebrew = 'a' in keep_params or 'h' in keep_params
-				is_separate_pirates = 'a' in keep_params or 'p' in keep_params
+				if keep_params == "none":
+					separation_options = CategoryOption(0)
+				elif 'a' in keep_params:
+					separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
+				else:
+					if 'h' in keep_params:
+						separation_options |= CategoryOption.HOMEBREW
+					if 'p' in keep_params:
+						separation_options |= CategoryOption.PIRATES
 				skip_next = True
 		elif arg in ("-s", "--sort"):
 			is_sort_enabled = True
@@ -579,9 +587,17 @@ def mane():
 				if sort_params == "reverse":
 					is_reverse_sort = True
 				else:
-					is_sort_homebrew = 'a' in sort_params or 'h' in sort_params
-					is_sort_pirates = 'a' in sort_params or 'p' in sort_params
-					is_sort_subfolders = 'a' in sort_params or 's' in sort_params
+					if sort_params == "none":
+						sort_options = CategoryOption(0)
+					elif 'a' in sort_params:
+						sort_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES | CategoryOption.SUBFOLDERS
+					else:
+						if 'h' in sort_params:
+							sort_options |= CategoryOption.HOMEBREW
+						if 'p' in sort_params:
+							sort_options |= CategoryOption.PIRATES
+						if 's' in sort_params:
+							sort_options |= CategoryOption.SUBFOLDERS
 				skip_next = True
 		elif arg in ("-l", "--log"):
 			is_log_enabled = True
@@ -677,9 +693,7 @@ def mane():
 				if is_reverse_sort:
 					target_folder = '.'
 				else:
-					target_folder = get_new_folder(os.path.basename(file_name),
-												   is_separate_homebrew, is_separate_pirates,
-												   is_sort_homebrew, is_sort_pirates, is_sort_subfolders, 
+					target_folder = get_new_folder(os.path.basename(file_name), separation_options, sort_options, 
 												   subfolders, exclude_tags)
 			else:
 				target_folder = os.path.dirname(file_name)
