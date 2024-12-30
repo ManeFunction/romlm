@@ -231,14 +231,6 @@ def clean_duplicates(file_list, action, is_log_enabled):
 			# anything else is "extra"
 			count += 1
 		return count
-	
-	# Get version score for comparison
-	def get_version_score(version_tuple) -> int:
-		"""
-		Convert a version tuple (major, minor, patch) into a single integer for comparison.
-		Example: (1, 2, 3, 4) => 001002003004
-		"""
-		return int("".join(f"{v:03}" for v in version_tuple))
 
 	# Get video format score for comparison (NTSC > none > PAL)
 	def get_video_format_score(tags_list) -> int:
@@ -253,19 +245,16 @@ def clean_duplicates(file_list, action, is_log_enabled):
 		return 1
 	
 	# Try to get version from tags list
-	def try_get_version(tags_list, regex, group) -> tuple:
-		version = (0,0,0,0)
-		version_found = False
+	def try_get_version_score(tags_list, regex, group) -> tuple[int, bool]:
 		for t in tags_list:
 			m = re.match(regex, t)
 			if m:
-				version_found = True
 				version_str = m.group(group)
-				version = tuple(map(int, version_str.split('.')))
-				version += (0,) * (4 - len(version))  # ensure 4-tuple
-				if version > version:
-					version = version
-		return version, version_found
+				parts = version_str.split(".")
+				version_tuple = tuple(map(int, parts)) + (0,) * (4 - len(parts))
+				version_score = int("".join(f"{v:03}" for v in version_tuple))
+				return version_score, True
+		return 0, False
 	
 	# Get the date score from tags list
 	def get_date_score(tags_list) -> int:
@@ -280,26 +269,24 @@ def clean_duplicates(file_list, action, is_log_enabled):
 	# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -video_format, -revision, -date )
 	def score_normal_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
+		
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
 		video_format_score = get_video_format_score(tags_list)
 		non_region = count_unknown_tags(tags_list)
+		date_score = get_date_score(tags_list)
 		
-		version, version_found = try_get_version(tags_list, release_version_regex, release_version_regex_group)
+		version_score, version_found = try_get_version_score(tags_list, release_version_regex, release_version_regex_group)
 		
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
 		if is_asian_region_and_not_en(tags_list):
 			non_region += 2
 			
-		# For Homebrew, assume that no explicit revision version is 1.0 (initial release)
+		# For Homebrew, assume that no explicit revision version is 1.0.0.0 (initial release)
 		# ...for retro ROMs, it's more likely "Rev 0" (initial release)
 		# also compensate missed initial revision for Homebrew 
 		if (is_homebrew(tags_list) or is_pirate(tags_list)) and not version_found:
-			version = (1,0,0,0)
+			version_score = 100000000000
 			non_region += 1
-
-		version_score = get_version_score(version)
-		
-		date_score = get_date_score(tags_list)
 		
 		return (
 			non_region,
@@ -313,12 +300,12 @@ def clean_duplicates(file_list, action, is_log_enabled):
 	# Beta/Proto scoring: ( -latest_date, -region_coverage, -beta_number, non_region_tags )
 	def score_beta_file(fpath):
 		tags_list = get_tags_from_filename(os.path.basename(fpath))
+		
 		coverage, _ = get_region_coverage_and_min_index(tags_list)
 		best_date_score = get_date_score(tags_list)
 		non_region = count_unknown_tags(tags_list)
 
-		beta_number, _ = try_get_version(tags_list, beta_version_regex, beta_version_regex_group)
-		version_score = get_version_score(beta_number)
+		version_score, _ = try_get_version_score(tags_list, beta_version_regex, beta_version_regex_group)
 		
 		return (
 			-best_date_score,
