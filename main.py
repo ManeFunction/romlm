@@ -260,10 +260,7 @@ def clean_duplicates(file_list, action, is_log_enabled):
 		coverage, min_idx = get_region_coverage_and_min_index(tags_list)
 		video_format_score = get_video_format_score(tags_list)
 			
-		# For Homebrew, assume that no explicit revision version is 1.0 (initial release)
-		# ...for retro ROMs, it's more likely "Rev 0" (initial release)
-		is_not_official = is_homebrew(tags_list) or is_pirate(tags_list)
-		revision = (1,0,0,0) if is_not_official else (0,0,0,0)
+		revision = (0,0,0,0)
 		revision_found = False
 		for t in tags_list:
 			m = re.match(r"^(?:rev\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
@@ -276,14 +273,19 @@ def clean_duplicates(file_list, action, is_log_enabled):
 					revision = version
 					
 		non_region = count_unknown_tags(tags_list)
-		revision_score = get_version_score(revision)
 		
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
 		if is_asian_region_and_not_en(tags_list):
 			non_region += 2
-		# Compensate missed initial revision for Homebrew 
-		elif is_not_official and not revision_found:
+			
+		# For Homebrew, assume that no explicit revision version is 1.0 (initial release)
+		# ...for retro ROMs, it's more likely "Rev 0" (initial release)
+		# also compensate missed initial revision for Homebrew 
+		if (is_homebrew(tags_list) or is_pirate(tags_list)) and not revision_found:
+			revision = (1,0,0,0)
 			non_region += 1
+
+		revision_score = get_version_score(revision)
 		
 		return (
 			non_region,
