@@ -202,20 +202,24 @@ def clean_duplicates(file_list, action, is_log_enabled):
 				is_en = True
 		return is_asian and not is_en
 
-	# Count how many "non-region" tags (excluding rev, beta/proto, sample, known region)
-	def count_non_region_tags(tags_list):
+	# Count how many unknown tags ROM have (excluding rev, beta/proto, sample, known region)
+	def count_unknown_tags(tags_list):
 		count = 0
 		for t in tags_list:
+			# Skip known regions tags
 			if t == top_region_priority:
 				continue
 			if t in region_priority:
 				continue
 			if t in asian_regions:
 				continue
-			if t.startswith("rev"):
+			# Revisions and versions tags
+			if t.startswith("rev") or t.startswith("v") or re.match(r"^\d+(?:\.\d+){0,3}$", t):
 				continue
+			# Beta and other in-development tags
 			if t.startswith("beta") or t.startswith("proto") or t.startswith("sample"):
 				continue
+			# Language tags
 			if t in ["en", "fr", "de", "es", "it", "nl", "pt", "sv", "no", "da", "fi"]:
 				continue
 			# anything else is "extra"
@@ -271,7 +275,7 @@ def clean_duplicates(file_list, action, is_log_enabled):
 				if version > revision:
 					revision = version
 					
-		non_region = count_non_region_tags(tags_list)
+		non_region = count_unknown_tags(tags_list)
 		revision_score = get_version_score(revision)
 		
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
@@ -311,7 +315,7 @@ def clean_duplicates(file_list, action, is_log_enabled):
 				if version > beta_number:
 					beta_number = version
 
-		non_region = count_non_region_tags(tags_list)
+		non_region = count_unknown_tags(tags_list)
 		version_score = get_version_score(beta_number)
 		
 		return (
