@@ -135,11 +135,6 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 	top_region_priority = "world"
 	region_priority = ["usa", "europe"]
 	asian_regions = ["japan", "asia", "china", "korea"]
-	
-	release_version_regex = r"^(?:rev\s+)?v?(\d+(?:\.\d+){0,3})?$"
-	release_version_regex_group = 1
-	beta_version_regex = r"^(?:(beta|alpha|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})?$"
-	beta_version_regex_group = 2
 
 	# Is ROM a part of multi-disc set?
 	def get_disc_number(tags_list) -> int:
@@ -244,11 +239,18 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 		return 1
 	
 	# Try to get version from tags list
-	def try_get_version_score(tags_list, regex, group) -> tuple[int, bool]:
+	def try_get_version_score(tags_list) -> tuple[int, bool]:
 		for t in tags_list:
-			m = re.match(regex, t)
+			# Catch numeric revisions
+			m = re.match(r"^(rev|proto|alpha|beta|sample|demo)\s+([a-z])$", t)
 			if m:
-				version_str = m.group(group)
+				rev = m.group(2)[0]
+				rev_score = ord(rev) - ord('a') + 1
+				return rev_score, True
+			# Catch version numbers
+			m = re.match(r"^(?:(rev|beta|alpha|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
+			if m:
+				version_str = m.group(2)
 				parts = version_str.split(".")
 				version_tuple = tuple(map(int, parts)) + (0,) * (4 - len(parts))
 				version_score = int("".join(f"{v:03}" for v in version_tuple))
@@ -272,7 +274,7 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 		non_region = count_unknown_tags(tags_list)
 		date_score = get_date_score(tags_list)
 		
-		version_score, version_found = try_get_version_score(tags_list, release_version_regex, release_version_regex_group)
+		version_score, version_found = try_get_version_score(tags_list)
 		
 		# Set a slight tags penalty for Asian regions to prioritize english versions even it's new (from Virtual Consoles, etc.)
 		if is_asian_region_and_not_en(tags_list):
@@ -306,7 +308,7 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 		best_date_score = get_date_score(tags_list)
 		non_region = count_unknown_tags(tags_list)
 
-		version_score, _ = try_get_version_score(tags_list, beta_version_regex, beta_version_regex_group)
+		version_score, _ = try_get_version_score(tags_list)
 		
 		if is_debug_log:
 			print(f"  >>> {fpath} (BETA): {Fore.MAGENTA}date({best_date_score}), reg({coverage}), v({version_score}), "
