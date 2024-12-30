@@ -3,12 +3,19 @@ import os
 import re
 import shutil
 import glob
+from enum import Enum
 import py7zr
 import zipfile
 import colorama
 from colorama import Fore, Style
 from tqdm import tqdm
-from multiprocessing import Process, freeze_support
+from multiprocessing import freeze_support
+
+class Action(Enum):
+	NOT_DEFINED = 0
+	ASK = 1
+	KEEP_ALL = 2
+	KEEP_ONE = 3
 
 def create_if_not_exist(folder):
 	if not os.path.exists(folder):
@@ -103,7 +110,7 @@ def get_base_name(filename: str) -> str:
 		base = name_no_ext.strip()
 	return base
 		
-def clean_duplicates(file_list, is_log_enabled):
+def clean_duplicates(file_list, action, is_log_enabled):
 	"""
     For each distinct base name (game):
       1) Partition into normal vs beta/proto.
@@ -312,12 +319,25 @@ def clean_duplicates(file_list, is_log_enabled):
 
 	# Print list of files in a color
 	def print_files_list(files_list, color):
-		for file in files_list:
-			print(f" - {color}{os.path.basename(file)}{Style.RESET_ALL}")
+		for file_name in files_list:
+			print(f" - {color}{os.path.basename(file_name)}{Style.RESET_ALL}")
 			
 	# Get a log iteration string formatted as "(N/M)"
-	def n(idx) -> str:
-		return f"({idx}/{len(groups_iter)}) "
+	def n(index) -> str:
+		return f"({index}/{len(groups_iter)}) "
+	
+	# Left only one file in the set
+	def keep_one(files_set, selected) -> set:
+		if is_log_enabled:
+			print(f"{n(i)}Removing duplicate(s):")
+		for file_name in files_set:
+			if file_name != selected:
+				if is_log_enabled:
+					print(f"- {Fore.RED}{os.path.basename(file_name)}{Style.RESET_ALL}")
+				os.remove(file_name)
+		if is_log_enabled:
+			print(f"| >> Keeping one: {Fore.GREEN}{os.path.basename(selected)}{Style.RESET_ALL}")
+		return {selected}
 
 	# Group files by base name
 	file_list = list(file_list)
@@ -420,29 +440,31 @@ def clean_duplicates(file_list, is_log_enabled):
 			for p in paths:
 				files_to_keep.add(p)
 			if is_log_enabled:
-				print(f"{n(i)}No release ROMs, keeping all Betas:")
+				print(f"{n(i)}No release ROMs, keeping all these:")
 				print_files_list(paths, Fore.GREEN)
 			continue
 
-		# Among the chosen normal set, pick exactly ONE best file by score
+		# Among the chosen normal set, pick best scored files
 		if len(chosen_set) == 1:
 			files_to_keep.add(chosen_set[0])
 			if is_log_enabled:
 				print(f"{n(i)}Single release ROM: {Fore.GREEN}{os.path.basename(chosen_set[0])}{Style.RESET_ALL}")
 			continue
 
-		best_normal = None
+		best_normal = set()
 		best_score = None
 		for nf in chosen_set:
 			sc = score_normal_file(nf)
 			if (best_score is None) or (sc < best_score):
 				best_score = sc
-				best_normal = nf
+				best_normal = {nf}
+			elif sc == best_score:
+				best_normal.add(nf)
 
 		# remove all others
-		keep_set = {best_normal}
+		keep_set = best_normal
 		for nf in chosen_set:
-			if nf != best_normal:
+			if nf not in best_normal:
 				if is_log_enabled:
 					print(f"{n(i)}Removing duplicate: {Fore.RED}{os.path.basename(nf)}{Style.RESET_ALL}")
 				os.remove(nf)
@@ -456,10 +478,44 @@ def clean_duplicates(file_list, is_log_enabled):
 				print(f"{n(i)}No best ROM, keeping all:")
 				print_files_list(chosen_set, Fore.GREEN)
 		else:
+			# check what we need to do with the rest of the best
+			if len(keep_set) > 1:
+				if action == Action.KEEP_ALL:
+					if is_log_enabled:
+						print(f"{n(i)}Keeping all best ROMs:")
+						print_files_list(keep_set, Fore.GREEN)
+						
+				elif action == Action.KEEP_ONE:
+					best_kept = min(keep_set, key=lambda x: x)
+					keep_set = keep_one(keep_set, best_kept)
+					
+				elif action == Action.ASK:
+					print(f"{n(i)}Can't decide which one is the best. Please select one to keep:")
+					keep_list = list(keep_set)
+					for idx, file in enumerate(keep_list, start=1):
+						print(f" {idx}. {Fore.YELLOW}{os.path.basename(file)}{Style.RESET_ALL}")
+					
+					selected_index = -1
+					while selected_index < 0 or selected_index > len(keep_list):
+						try:
+							selected_index = int(input("Enter the number of the file to keep (0 to keep all): "))
+						except ValueError:
+							print("Invalid input. Please enter a number.")
+					
+					if selected_index == 0:
+						if is_log_enabled:
+							print(f"{n(i)}Keeping all best ROMs:")
+							print_files_list(keep_set, Fore.GREEN)
+					else:
+						user_selected = keep_list[selected_index - 1]
+						keep_set = keep_one(keep_set, user_selected)
+			
+			if len(keep_set) == 1:
+				if is_log_enabled:
+					print(f"{n(i)}Best ROM: {Fore.GREEN}{os.path.basename(next(iter(keep_set)))}{Style.RESET_ALL}")
+			
 			for f in keep_set:
 				files_to_keep.add(f)
-			if is_log_enabled:
-				print(f"{n(i)}Best ROM: {Fore.GREEN}{os.path.basename(best_normal)}{Style.RESET_ALL}")
 
 	# Return only files we decided to keep
 	return [f for f in file_list if f in files_to_keep]
@@ -482,6 +538,7 @@ def mane():
 	packing_format = "7z"
 	is_log_enabled = False
 	is_remove_duplicates = False
+	remove_duplicates_action = Action.NOT_DEFINED
 	subfolders = None
 	exclude_tags = None
 	input_folder = "."
@@ -530,6 +587,18 @@ def mane():
 			is_log_enabled = True
 		elif arg in ("-r", "--remove-duplicates"):
 			is_remove_duplicates = True
+			if is_next_optional_parameter(args, i):
+				remove_duplicates_param = args[i+1]
+				if remove_duplicates_param == "ask":
+					remove_duplicates_action = Action.ASK
+				elif remove_duplicates_param == "all":
+					remove_duplicates_action = Action.KEEP_ALL
+				elif remove_duplicates_param == "one":
+					remove_duplicates_action = Action.KEEP_ONE
+				else:
+					print(f"{Fore.RED}Error: Unknown action '{remove_duplicates_param}'! --remove-duplicates only supports 'ask', 'all' or 'one'.{Style.RESET_ALL}")
+					sys.exit(1)
+				skip_next = True
 		elif arg in ("-f", "--subfolders"):
 			if i+1 < len(args):
 				subfolders = args[i+1].split(",")
@@ -555,6 +624,10 @@ def mane():
 			else:
 				print(f"{Fore.RED}Error: --input requires a folder path.{Style.RESET_ALL}")
 				sys.exit(1)
+				
+	# Set default action for duplicates removal
+	if remove_duplicates_action == Action.NOT_DEFINED:
+		remove_duplicates_action = Action.ASK if is_log_enabled else Action.KEEP_ALL
 
 	# Check for conflicting options
 	if is_unpacking_enabled is True and is_packing_enabled is True:
@@ -582,7 +655,7 @@ def mane():
 
 	# If duplicates removal is enabled, do it first
 	if is_remove_duplicates:
-		files_list = clean_duplicates(files_list, is_log_enabled)
+		files_list = clean_duplicates(files_list, remove_duplicates_action, is_log_enabled)
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
 	# Process files
@@ -648,4 +721,4 @@ def mane():
 
 if __name__ == "__main__":
 	freeze_support()
-	Process(target=mane).start()
+	mane()
