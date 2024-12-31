@@ -9,7 +9,7 @@ import zipfile
 import colorama
 from colorama import Fore, Style
 from tqdm import tqdm
-from multiprocessing import freeze_support
+from multiprocessing import Pool, freeze_support
 
 class Action(Enum):
 	NOT_DEFINED = 0
@@ -365,10 +365,8 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 	files_to_keep = set()
 
 	# MAIN LOOP of removing duplicates
-	if is_log_enabled:
-		groups_iter = by_basename.items()
-	else:
-		groups_iter = tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
+	groups_iter = by_basename.items() if is_log_enabled \
+		else tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
 
 	i = 0
 	for base, paths in groups_iter:
@@ -524,6 +522,39 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
 	# Return only files we decided to keep
 	return [f for f in file_list if f in files_to_keep]
 
+def process_file(args) -> tuple[str, str]:
+	"""Processes a single file for packing or unpacking."""
+	file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format = args
+	result_log = None
+	if is_unpacking_enabled:
+		result_log = unpack_file(file_name, target_folder)
+	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")):
+		result_log = pack_file(file_name, target_folder, packing_format)
+	return file_name, result_log
+
+def unpack_file(file_name, target_folder) -> str:
+	"""Handles unpacking of a single file."""
+	if file_name.endswith(".7z"):
+		with py7zr.SevenZipFile(file_name, 'r') as archive:
+			archive.extractall(target_folder)
+	elif file_name.endswith(".zip"):
+		with zipfile.ZipFile(file_name, 'r') as archive:
+			archive.extractall(target_folder)
+	os.remove(file_name)
+	return f" >> Unpacked to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}"
+
+def pack_file(file_name, target_folder, packing_format) -> str:
+	"""Handles packing of a single file."""
+	archive_path = os.path.join(target_folder, os.path.basename(file_name))
+	if packing_format == "7z":
+		with py7zr.SevenZipFile(str(archive_path) + ".7z", 'w') as archive:
+			archive.write(file_name, arcname=os.path.basename(file_name))
+	elif packing_format == "zip":
+		with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
+			archive.write(file_name, arcname=os.path.basename(file_name))
+	os.remove(file_name)
+	return f" >> Packed to: {Fore.BLUE}{archive_path}.{packing_format}{Style.RESET_ALL}"
+
 def is_next_optional_parameter(args, i) -> bool:
 	return i+1 < len(args) and not args[i+1].startswith("-")
 
@@ -677,58 +708,50 @@ def mane():
 		files_list = clean_duplicates(files_list, remove_duplicates_action, is_log_enabled, is_debug_log)
 		print("Total ROMs after duplicates removal: ", len(files_list))
 		
+	def get_target_folder() -> str:
+		if is_sort_enabled:
+			if is_reverse_sort:
+				return '.'
+			return get_new_folder(os.path.basename(file_name), separation_options, sort_options,
+										   subfolders, exclude_tags)
+		return os.path.dirname(file_name)
+		
 	# Process files
 	if is_sort_enabled is True or is_unpacking_enabled is True or is_packing_enabled is True:
-		print(">> Processing files...")
-		if is_log_enabled:
-			progress = files_list
-		else:
-			progress = tqdm(files_list, desc="Processing")
-	
-		i = 0
-		for file_name in progress:
-			i += 1
-			if is_log_enabled:
-				print(f"({i}/{len(progress)}) Processing: {Fore.GREEN}{os.path.basename(file_name)}{Style.RESET_ALL}")
-	
-			# Sorting options
-			if is_sort_enabled:
-				if is_reverse_sort:
-					target_folder = '.'
-				else:
-					target_folder = get_new_folder(os.path.basename(file_name), separation_options, sort_options, 
-												   subfolders, exclude_tags)
-			else:
-				target_folder = os.path.dirname(file_name)
-	
-			# Extracting block
-			if is_unpacking_enabled:
-				if file_name.endswith(".7z"):
-					with py7zr.SevenZipFile(file_name, 'r') as archive:
-						archive.extractall(target_folder)
-				elif file_name.endswith(".zip"):
-					with zipfile.ZipFile(file_name, 'r') as archive:
-						archive.extractall(target_folder)
-				os.remove(file_name)
-				if is_log_enabled:
-					print(f" >> Unpacked to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}")
-			# Packing block
-			elif is_packing_enabled and not file_name.endswith(".7z") and not file_name.endswith(".zip"):
-				archive_path = os.path.join(target_folder, os.path.basename(file_name))
-				if packing_format == "7z":
-					with py7zr.SevenZipFile(str(archive_path) + ".7z", 'w') as archive:
-						archive.write(file_name, arcname=os.path.basename(file_name))
-				elif packing_format == "zip":
-					with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
-						archive.write(file_name, arcname=os.path.basename(file_name))
-				os.remove(file_name)
-				if is_log_enabled:
-					print(f" >> Packed to: {Fore.BLUE}{archive_path}.{packing_format}{Style.RESET_ALL}")
-			# Execute sorting
-			else:
+		# Single-threaded processing for just a move operation
+		if not is_unpacking_enabled and not is_packing_enabled:
+			print(">> Processing files...")
+			progress = files_list if is_log_enabled else tqdm(files_list, desc="Processing")
+			
+			for file_name in progress:
+				target_folder = get_target_folder()
 				shutil.move(file_name, os.path.join(target_folder, os.path.basename(str(file_name))))
 				if is_log_enabled:
 					print(f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}")
+		else:
+			# Multithreaded processing for packing/unpacking
+			print(">> Preparing processing...")
+			tasks = []
+			for file_name in files_list:
+				target_folder = get_target_folder()
+				tasks.append((file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format))
+				
+			print(">> Processing files...")
+			i = 0
+			if is_log_enabled:
+				with Pool(processes=os.cpu_count()) as pool:
+					for task in pool.imap_unordered(process_file, tasks):
+						i += 1
+						f_name, result_log = task
+						print(f"({i}/{len(tasks)}) Processed: {Fore.GREEN}{f_name}{Style.RESET_ALL}")
+						if result_log is not None:
+							print(result_log)
+			else:
+				with Pool(processes=os.cpu_count()) as pool:
+					with tqdm(total=len(tasks), desc="Processing") as progress:
+						for _ in pool.imap_unordered(process_file, tasks):
+							progress.update(1)
+					
 	
 		remove_meta_files(".", is_log_enabled)
 		remove_empty_subfolders(".", is_log_enabled)
