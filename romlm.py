@@ -24,7 +24,7 @@ def print_help():
 	print("  -p, --pack [format]          Pack all files in the folder to 7z/zip format.")
 	print("                               [format] can be '7z' or 'zip'. Default is '7z'.")
 	print("  -u, --unlicensed [options]   Separate Homebrew and Pirate stuff to separate folders.")
-	print("                               [options] can be 'h' (homebrew), 'p' (pirates), 'a' (all).")
+	print("                               [options] can be 'h' (homebrew only), 'p' (pirates only), 'none'.")
 	print("                               It's enabled by default.")
 	print("  -r, --remove-duplicates      Remove duplicate files.")
 	print("                               When program stuck with a few 'best' ROMs:")
