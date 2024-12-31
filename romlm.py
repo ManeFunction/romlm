@@ -11,6 +11,34 @@ from colorama import Fore, Style
 from tqdm import tqdm
 from multiprocessing import Pool, freeze_support
 
+def print_help():
+	print("Usage: romlm [options]")
+	print("Options:")
+	print("  -i, --input [folder]         Specify the input folder. Default is the current folder.")
+	print("  -s, --sort [options]         Sort files into lettered subfolders (A-Z).")
+	print("                               Options indicates should special folders should be also sorted.")
+	print("                               [options] can be 'h' (homebrew), 'p' (pirates), 's' (subfolders), 'a' (all).")
+	print("                               or use any combinations, like 'hp' or 'ps'.")
+	print("                               'reverse' will us-sort ROMs, placing all in the root.")
+	print("  -x, --extract                Extract all 7z/zip files in the folder.")
+	print("  -p, --pack [format]          Pack all files in the folder to 7z/zip format.")
+	print("                               [format] can be '7z' or 'zip'. Default is '7z'.")
+	print("  -u, --unlicensed [options]   Separate Homebrew and Pirate stuff to separate folders.")
+	print("                               [options] can be 'h' (homebrew), 'p' (pirates), 'a' (all).")
+	print("                               It's enabled by default.")
+	print("  -r, --remove-duplicates      Remove duplicate files.")
+	print("                               When program stuck with a few 'best' ROMs:")
+	print("                               'ask' will ask which file to keep.")
+	print("                               'all' will keep all best files.")
+	print("                               'one' will keep only one best file.")
+	print("                               If --log is enabled default is 'ask', otherwise 'all'.")
+	print("                               --log is recommended for this process.")
+	print("  -f, --subfolders [list]      Define subfolders to sort files into.")
+	print("  -e, --exclude [list]         Exclude files with specified tags.")
+	print("  -h, --help                   Show this help message.")
+	print("  -l, --log                    Enable full logging instead of progressbars.")
+	print("  --debug                      Enable debug logging (used only for -r at the moment).")
+
 class Action(Enum):
 	NOT_DEFINED = 0
 	ASK = 1
@@ -587,7 +615,10 @@ def mane():
 		if skip_next:
 			skip_next = False
 			continue
-		if arg in ("-u", "--unpack"):
+		if arg in ("-h", "--help"):
+			print_help()
+			sys.exit()
+		if arg in ("-x", "--extract"):
 			is_unpacking_enabled = True
 		elif arg in ("-p", "--pack"):
 			is_packing_enabled = True
@@ -601,7 +632,7 @@ def mane():
 					print(f"{Fore.RED}Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.{Style.RESET_ALL}")
 					sys.exit(1)
 				skip_next = True
-		elif arg in ("-k", "--keep"):
+		elif arg in ("-u", "--unlicensed"):
 			if is_next_optional_parameter(args, i):
 				keep_params = args[i+1]
 				if keep_params == "none":
@@ -651,7 +682,7 @@ def mane():
 					print(f"{Fore.RED}Error: Unknown action '{remove_duplicates_param}'! --remove-duplicates only supports 'ask', 'all' or 'one'.{Style.RESET_ALL}")
 					sys.exit(1)
 				skip_next = True
-		elif arg in ("-f", "--subfolders"):
+		elif arg in ("-f", "--folders"):
 			if i+1 < len(args):
 				subfolders = args[i+1].split(",")
 				if is_log_enabled:
