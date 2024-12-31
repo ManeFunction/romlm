@@ -39,7 +39,7 @@ def try_add_subfolder(is_sort_subfolders, folder_name, filename) -> str:
 
 def get_tags_from_filename(filename: str) -> list[str]:
 	name_no_ext = os.path.splitext(filename)[0]
-	groups = re.findall(r'\((.*?)\)', name_no_ext)
+	groups = re.findall(r'[(\[](.*?)[)\]]', name_no_ext)
 	all_tags = []
 	for g in groups:
 		split_tags = [t.strip() for t in g.split(',')]
@@ -107,7 +107,9 @@ def remove_empty_subfolders(path, is_log_enabled):
 
 def get_base_name(filename: str) -> str:
 	name_no_ext = os.path.splitext(filename)[0]
-	idx = name_no_ext.find('(')
+	idx_1 = name_no_ext.find('(')
+	idx_2 = name_no_ext.find('[')
+	idx = min(idx_1, idx_2) if idx_1 != -1 and idx_2 != -1 else max(idx_1, idx_2)
 	if idx != -1:
 		base = name_no_ext[:idx].strip()
 	else:
