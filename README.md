@@ -117,10 +117,10 @@ our library from all the stuff we never play anyway.
 
 There is an example how to separate and work with your Japanese library, if you need it. But it also can be a great
 example of **romlm** capabilities for you to learn. Emulation Station have a separate folders for Japanese libraries 
-(at least for 3 the whales of retro gaming: NES, SNES and Genesis) as well as for homebrew, 
-so it's good to separate them first, if you are interested in them. So, here is the way:
+(at least for the 3 whales of retro gaming: NES, SNES and Genesis) as well as for homebrew, 
+so it's good to separate them first, if you are interested in them. Here is the way:
 1) `-i ./your-roms -s a -f Japan -e USA,EN` command first to separate non-en Japanese releases 
-(they ends up in !Japan folder). Alternatively, you can use `-s f` if your collection do not have a lot of homebrew
+(they ends up in `!Japan` folder). Alternatively, you can use `-s f` if your collection do not have a lot of homebrew
 and pirates, and you do not need to sort them in (A-Z) folders.
 1) Put all sorted folders (A-Z) from `your-roms` folder to `your-roms/sorted` for example, to be able to treat them
 separately later.
@@ -129,8 +129,8 @@ folders in your `your-roms` folder. `!` is used here to keep them on top of the 
 folders alphabetically, but remember, that you should escape it with `\!` in the command line, so path 
 for the next commands should look like `-i ./your-roms/\!Japan` for example.
 1) Do `-i ./your-roms/sorted -r -l` for all the subfolders separately to remove duplicates, but keep them in 
-sorted (mostly USA) and Japanese folders.
-1) After that you can pack all the ROMs in one command `-i ./your-roms -p`. This command keeps folders structure.
+sorted (mostly USA for now) and Japanese folders.
+1) After that you can pack all the ROMs in one command `-i ./your-roms -p`. This command keeps our new folders structure.
 
 This way you will keep all the Japanese versions of the games, separated into a dedicated folder, and anyways
 all other duplicates will be removed, easing the access to the games you want to play in the future and
