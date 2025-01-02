@@ -557,7 +557,7 @@ def process_file(args) -> tuple[str, str]:
 	"""Processes a single file for packing or unpacking."""
 	file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format = args
 	result_log = None
-	if is_unpacking_enabled:
+	if is_unpacking_enabled and file_name.endswith((".7z", ".zip")):
 		result_log = unpack_file(file_name, target_folder)
 	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not file_name.startswith("[BIOS]"):
 		result_log = pack_file(file_name, target_folder, packing_format)
