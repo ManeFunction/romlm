@@ -559,7 +559,7 @@ def process_file(args) -> tuple[str, str]:
 	result_log = None
 	if is_unpacking_enabled:
 		result_log = unpack_file(file_name, target_folder)
-	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")):
+	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not file_name.startswith("[BIOS]"):
 		result_log = pack_file(file_name, target_folder, packing_format)
 	return file_name, result_log
 
