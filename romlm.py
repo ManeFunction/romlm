@@ -17,7 +17,7 @@ def print_help():
 	print("  -i, --input [folder]         Specify the input folder. Default is the current folder.\n")
 	print("  -s, --sort [options]         Sort files into lettered subfolders (A-Z).")
 	print("                               Options indicates should special folders should be also sorted.")
-	print("                               [options] can be 'h' (homebrew), 'p' (pirates), 's' (subfolders), 'a' (all).")
+	print("                               [options] can be 'h' (homebrew), 'p' (pirates), 'f' (user-defined folders), 'a' (all).")
 	print("                               or use any combinations, like 'hp' or 'ps'.")
 	print("                               'reverse' will us-sort ROMs, placing all in the root.\n")
 	print("  -x, --extract                Extract all 7z/zip files in the folder.\n")
@@ -662,7 +662,7 @@ def mane():
 							sort_options |= CategoryOption.HOMEBREW
 						if 'p' in sort_params:
 							sort_options |= CategoryOption.PIRATES
-						if 's' in sort_params:
+						if 'f' in sort_params:
 							sort_options |= CategoryOption.SUBFOLDERS
 				skip_next = True
 		elif arg in ("-l", "--log"):
