@@ -146,7 +146,7 @@ saving the space on your device for more great games.
     - You can install **rolm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
       typing `brew install romlm` in the Terminal. -->
 1) **Ready to use binaries (Mac and Windows)**
-    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/roms-library-manager/releases).  
+    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/roms-library-manager/releases) and run it with `./romlm`.  
 1) **Python script**
     - if you know how to work with Python scripts, venv, and dependencies, you can simply clone the repository 
       and run `romlm.py`. In that way, feel free to modify the script for yourself as you want.
@@ -157,6 +157,12 @@ saving the space on your device for more great games.
 
 Created and maintained by ManeFunction.
 
-Thanks for your contributions and feedback!
+Huge thanks to the [no-intro](http://www.no-intro.org/) team for their amazing work on the ROM sets and retro games
+preservation.
+
+Also, big shoutout to the [Nuitka](https://github.com/Nuitka/Nuitka) project for the great Python compiler, allowed me
+to provide a very fast working binaries, in compare with a standard PyInstaller method.
+
+And of cause, thanks for your contributions and feedback!
 If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/roms-library-manager/issues) page 
 or create a or pull request.
