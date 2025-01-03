@@ -739,8 +739,13 @@ def mane():
 
 	# If duplicates removal is enabled, do it first
 	if is_remove_duplicates:
+		files_was = len(files_list)
 		files_list = clean_duplicates(files_list, remove_duplicates_action, is_log_enabled, is_debug_log)
-		print("Total ROMs after duplicates removal: ", len(files_list))
+		if files_was != len(files_list):
+			print(f"Total ROMs left after duplicates removal: {Fore.GREEN}{len(files_list)}{Style.RESET_ALL} "
+				  f"out of {Fore.RED}{files_was}{Style.RESET_ALL}")
+		else:
+			print("No duplicates found...")
 		
 	def get_target_folder() -> str:
 		if is_sort_enabled:
