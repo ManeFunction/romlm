@@ -1,4 +1,4 @@
-# romlm
+# romlm (ROMs Library Manager)
 
 A Python-based command line tool that helps you organize and manage your ROM collections effortlessly. 
 Whether you want to pack, unpack, sort, or remove duplicates, **romlm** has got you covered.
@@ -6,7 +6,7 @@ Whether you want to pack, unpack, sort, or remove duplicates, **romlm** has got 
 All features are tested on the no-intro ROM sets (which I personally recommend), but it should work with any 
 ROM collection that follows a similar naming convention.
 If you have some issues with other ROM sets, that can't be worked-around with the current implementation, 
-feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/roms-library-manager/issues) page.
+feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page.
 
 ---
 
@@ -16,14 +16,14 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   Automatically unpacks all `.7z` or `.zip` files in the current directory (or a specified folder) into subfolders. 
   Supports nested subfolders, keeping all the structure.
 
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/extract.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/extract.png)
 
 
 - **Pack (`-p, --pack`)**  
   Compresses all uncompressed files in the current directory (or a specified folder) into `.7z` or `.zip` archives. 
   Supports nested subfolders, keeping all the structure.
 
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/pack.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/pack.png)
 
 
 - **Sort (`-s, --sort`)**  
@@ -36,7 +36,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
     - You can also use any combination of `h`, `p` and `f` options, for example `hp` or `fh`.
     - `-s reverse` will reverse-sort files, i.e., move them all back into the root folder.
   
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/sort.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/sort.png)
 
 
 - **Separate Homebrew and Pirate ROMs (`-u, --unlicensed`)**  
@@ -46,7 +46,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
     - `h` separates Homebrew files only,
     - `p` separates Pirate files only.
 
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/unlicensed.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/unlicensed.png)
 
 
 - **Remove Duplicates (`-r, --remove-duplicates`)**  
@@ -66,7 +66,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   
   If you want to keep a Japanese collection intact, I recommend to separate it first. See Usage Examples below.
       
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/remove.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/remove.png)
 
 
 - **User-defined Folders (`-f, --folders`)**  
@@ -80,13 +80,13 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   will move all `(Japan)` tagged ROMs into a dedicated subfolder, excluding any `(USA)` tagged ROMs
   if `(Japan, USA)` combination is met.
 
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/subfolder.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/subfolder.png)
 
 
 - **Logging (`-l, --log`)**  
   Enables verbose output to see exactly what the script is doing. Extremely useful when `--remove-duplicates` is enabled.
 
-  ![](https://raw.githubusercontent.com/wiki/ManeFunction/roms-library-manager/remove-log.png)
+  ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/remove-log.png)
 
 
 - **Other Utilities**  
@@ -146,7 +146,7 @@ saving the space on your device for more great games.
     - You can install **rolm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
       typing `brew install romlm` in the Terminal. -->
 1) **Ready to use binaries (Mac and Windows)**
-    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/roms-library-manager/releases) and run it with `./romlm`.  
+    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
     - On Mac:
         - Unpack the downloaded archive.
         - Open Terminal or any other CL app you prefer to use.
@@ -174,5 +174,5 @@ Also, big shoutout to the [Nuitka](https://github.com/Nuitka/Nuitka) project for
 to provide a very fast working binaries, in compare with a standard PyInstaller method.
 
 And of cause, thanks for your contributions and feedback!
-If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/roms-library-manager/issues) page 
+If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page 
 or create a or pull request.

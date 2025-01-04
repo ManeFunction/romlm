@@ -47,7 +47,7 @@ def print_help():
 	print("-l, --log                    Enable full logging instead of progressbars.\n")
 	print("For more details and examples or to support an author,")
 	print("please check the README file or visit the GitHub repository:")
-	print(f"{Fore.CYAN}https://github.com/ManeFunction/roms-library-manager{Style.RESET_ALL}")
+	print(f"{Fore.CYAN}https://github.com/ManeFunction/romlm{Style.RESET_ALL}")
 
 class Action(Enum):
 	NOT_DEFINED = 0
