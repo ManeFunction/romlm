@@ -599,7 +599,7 @@ def is_next_optional_parameter(args, i) -> bool:
 	return i+1 < len(args) and not args[i+1].startswith("-")
 
 def mane():
-	print(">> Initializing...")
+	print(">> Welcome to ROMs Library Manager (v1.0.0)")
 
 	separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
 	is_sort_enabled = False
