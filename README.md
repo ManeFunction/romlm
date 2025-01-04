@@ -150,12 +150,13 @@ saving the space on your device for more great games.
     - On Mac:
         - Unpack the downloaded archive.
         - Open Terminal or any other CL app you prefer to use.
-        - Run `cd path/to/folder` to go to the folder where is unpacked `romlm` was placed 
-          (you can just drag'n'drop a folder to the Terminal to copy-paste its path).
-        - Run `xattr -d com.apple.quarantine ./romlm` to remove the quarantine attribute from the app 
-          or just attempt to start it and allow execution in `Settings > Security & Privacy`.
+        - Run `cd path/to/unpacked/folder` to go to the folder (you can just drag'n'drop a folder to the Terminal
+          to copy-paste its path).
+        - Run `xattr -r -d com.apple.quarantine ./` to remove the quarantine attribute from binaries 
+          (I do not have an Apple Developer status at the moment and cannot sign binaries properly, 
+          this will be fixed in the future).
         - Run `./romlm -h` to verify the script is working (be aware, that macOS still running security checks, 
-          and prepare environment, so the first start of the app will be longer for about 10-15 sec. It's OK).
+          so the first start of the app will be longer for about 10-15 sec.).
 1) **Python script**
     - if you know how to work with Python scripts, venv, and dependencies, you can simply clone the repository 
       and run `romlm.py`. In that way, feel free to modify the script for yourself as you want.
