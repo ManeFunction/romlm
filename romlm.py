@@ -45,8 +45,9 @@ def print_help():
 	print("-e, --exclude [list]         Exclude files with specified tags from -f process.\n")
 	print("-h, --help                   Show this help message.\n")
 	print("-l, --log                    Enable full logging instead of progressbars.\n")
-	print("For more details and examples or to support an author, please check the README file")
-	print(f"or visit the GitHub repository: {Fore.CYAN}https://github.com/ManeFunction/roms-library-manager{Style.RESET_ALL}")
+	print("For more details and examples or to support an author,")
+	print("please check the README file or visit the GitHub repository:")
+	print(f"{Fore.CYAN}https://github.com/ManeFunction/roms-library-manager{Style.RESET_ALL}")
 
 class Action(Enum):
 	NOT_DEFINED = 0
