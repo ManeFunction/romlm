@@ -182,9 +182,8 @@ Created and maintained by ManeFunction.
 Huge thanks to the [no-intro](http://www.no-intro.org/) team for their amazing work on the ROM sets and retro games
 preservation.
 
-Also, big shoutout to the [Nuitka](https://github.com/Nuitka/Nuitka) project for the great Python compiler, allowed me
-to provide a very fast working binaries, in compare with a standard PyInstaller method.
+Also, big shoutout to the [Nuitka](https://github.com/Nuitka/Nuitka) project for the great Python compiler.
 
-And of cause, thanks for your contributions and feedback!
+And of course, thanks for your contributions and feedback!
 If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page 
 or create a or pull request.
