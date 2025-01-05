@@ -11,6 +11,8 @@ from colorama import Fore, Style
 from tqdm import tqdm
 from multiprocessing import Pool, freeze_support
 
+version = "1.0.1"
+
 def print_help():
 	print("Usage: \033[1mromlm\033[0m [parameters]")
 	print("Parameters:\n")
@@ -599,7 +601,7 @@ def is_next_optional_parameter(args, i) -> bool:
 	return i+1 < len(args) and not args[i+1].startswith("-")
 
 def mane():
-	print(">> Welcome to ROMs Library Manager (v1.0.0)")
+	print(f">> Welcome to ROMs Library Manager (v{version})")
 
 	separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
 	is_sort_enabled = False
