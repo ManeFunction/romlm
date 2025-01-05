@@ -99,7 +99,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 ## Installation
 
 **romlm** is available to use in a variety of ways.  
-`pip` or `brew` is recommended ways, because they can handle dependencies and updates automatically.
+`pip` or `brew` is recommended ways, because they have a convenient way to manage updates automatically.
 1) **pip (Recommended for everyone with Python environment)**
     - You can check if you have Python installed by running `python --version` in the Terminal or cmd.
     - For Mac and Linux users, there is a high chance that you already have Python installed on your system.
@@ -113,9 +113,20 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
       typing `brew install manefunction/tap/romlm` in the Terminal.
     - Verify the installation with `romlm -h` command.
     - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
-1) **Ready to use binaries (Mac and Windows)**
+1) **Ready to use binaries (Recommended for Windows users)**
     - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
     - Unpack the downloaded archive.
+    - On Windows (cmd):
+        - Open Command Prompt (cmd) with `Win+R` and typing `cmd`, or just searching `cmd` in a Start menu.
+        - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
+          Don't forget to use `cd` with `/d` option to change the drive, if needed (`cd /d path\to\folder`).
+        - Run `romlm -h` to verify the script is working.
+        - You are perfect, you can use the app now with `romlm [parameters]` command.
+    - On Windows (PowerShell):
+        - Open PowerShell searching it in a Start menu.
+        - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
+        - Run `./romlm -h` to verify the script is working.
+        - You are perfect, you can use the app now with `./romlm [parameters]` command.
     - On Mac:
       - Open Terminal or any other CL app you prefer to use.
       - Run `cd path/to/unpacked/folder` to go to the folder (you can just drag'n'drop a folder to the Terminal
@@ -125,17 +136,6 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
         this, hopefully, will be fixed in the future).
       - Run `./romlm -h` to verify the script is working  
         (be aware, that macOS still running security checks, so the first start of the app will be longer for about 10-15 sec.).
-      - You are perfect, you can use the app now with `./romlm [parameters]` command.
-    - On Windows (cmd):
-      - Open Command Prompt (cmd) with `Win+R` and typing `cmd`, or just searching `cmd` in a Start menu.
-      - Run `cd path\to\folder` to go to the folder with `romlm.exe`.  
-        Don't forget to use `cd` with `/d` option to change the drive, if needed (`cd /d path\to\folder`).
-      - Run `romlm -h` to verify the script is working.
-      - You are perfect, you can use the app now with `romlm [parameters]` command.
-    - On Windows (PowerShell):
-      - Open PowerShell searching it in a Start menu.
-      - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
-      - Run `./romlm -h` to verify the script is working.
       - You are perfect, you can use the app now with `./romlm [parameters]` command.
 1) **Python package (manual installation, for advanced users)**
       - Clone the repository or download the source code from the GitHub.
