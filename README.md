@@ -90,9 +90,9 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 
 
 - **Other Utilities**  
-    - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`).
-    - Removes empty subdirectories after sorting.
-    - Provides an in-script help guide (`-h, --help`).
+  - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`).
+  - Removes empty subdirectories after sorting.
+  - Provides an in-script help guide (`-h, --help`).
 
 ---
 
@@ -143,32 +143,32 @@ saving the space on your device for more great games.
 
 **romlm** is available to use in a variety of ways.
 <!-- 1) **brew (Recommended for Mac users)**
-    - You can install **rolm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
-      typing `brew install romlm` in the Terminal. -->
+  - You can install **rolm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
+    typing `brew install romlm` in the Terminal. -->
 1) **Ready to use binaries (Mac and Windows)**
     - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
     - Unpack the downloaded archive.
     - On Mac:
-        - Open Terminal or any other CL app you prefer to use.
-        - Run `cd path/to/unpacked/folder` to go to the folder (you can just drag'n'drop a folder to the Terminal
-          to copy-paste its path).
-        - Run `xattr -r -d com.apple.quarantine ./` to remove the quarantine attribute from binaries  
-          (I do not have an Apple Developer status at the moment and cannot sign binaries properly, 
-          this, hopefully, will be fixed in the future).
-        - Run `./romlm -h` to verify the script is working  
-          (be aware, that macOS still running security checks, so the first start of the app will be longer for about 10-15 sec.).
-        - You are perfect, you can use the app now with `./romlm [parameters]` command.
+      - Open Terminal or any other CL app you prefer to use.
+      - Run `cd path/to/unpacked/folder` to go to the folder (you can just drag'n'drop a folder to the Terminal
+        to copy-paste its path).
+      - Run `xattr -r -d com.apple.quarantine ./` to remove the quarantine attribute from binaries  
+        (I do not have an Apple Developer status at the moment and cannot sign binaries properly, 
+        this, hopefully, will be fixed in the future).
+      - Run `./romlm -h` to verify the script is working  
+        (be aware, that macOS still running security checks, so the first start of the app will be longer for about 10-15 sec.).
+      - You are perfect, you can use the app now with `./romlm [parameters]` command.
     - On Windows (cmd):
-        - Open Command Prompt (cmd) with `Win+R` and typing `cmd`, or just searching `cmd` in a Start menu.
-        - Run `cd path\to\folder` to go to the folder with `romlm.exe`.  
-          Don't forget to use `cd` with `/d` option to change the drive, if needed (`cd /d path\to\folder`).
-        - Run `romlm -h` to verify the script is working.
-        - You are perfect, you can use the app now with `romlm [parameters]` command.
+      - Open Command Prompt (cmd) with `Win+R` and typing `cmd`, or just searching `cmd` in a Start menu.
+      - Run `cd path\to\folder` to go to the folder with `romlm.exe`.  
+        Don't forget to use `cd` with `/d` option to change the drive, if needed (`cd /d path\to\folder`).
+      - Run `romlm -h` to verify the script is working.
+      - You are perfect, you can use the app now with `romlm [parameters]` command.
     - On Windows (PowerShell):
-        - Open PowerShell searching it in a Start menu.
-        - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
-        - Run `./romlm -h` to verify the script is working.
-        - You are perfect, you can use the app now with `./romlm [parameters]` command.
+      - Open PowerShell searching it in a Start menu.
+      - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
+      - Run `./romlm -h` to verify the script is working.
+      - You are perfect, you can use the app now with `./romlm [parameters]` command.
 1) **Python script**
     - if you know how to work with Python scripts, venv, and dependencies, you can simply clone the repository 
       and run `romlm.py`. In that way, feel free to modify the script for yourself as you want.
