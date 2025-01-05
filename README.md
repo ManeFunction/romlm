@@ -142,9 +142,9 @@ saving the space on your device for more great games.
 ## Installation
 
 **romlm** is available to use in a variety of ways.
-<!-- 1) **brew (Recommended for Mac users)**
-  - You can install **rolm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
-    typing `brew install romlm` in the Terminal. -->
+1) **brew (Recommended for Mac users)**
+    - You can install **romlm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
+      typing `brew install romlm` in the Terminal.
 1) **Ready to use binaries (Mac and Windows)**
     - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
     - Unpack the downloaded archive.
