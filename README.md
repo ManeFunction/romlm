@@ -137,7 +137,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
       - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
       - Run `./romlm -h` to verify the script is working.
       - You are perfect, you can use the app now with `./romlm [parameters]` command.
-1) **Python package (manual installation)**
+1) **Python package (manual installation, for advanced users)**
       - Clone the repository or download the source code from the GitHub.
       - Go to the folder with the script in your Terminal.
       - Run `pip install .` to install `romlm` to your system.
