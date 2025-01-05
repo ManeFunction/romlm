@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "romlm"
-version = "1.0.1"
+version = "1.0.2"
 description = "A ROM library management tool."
 authors = [
     { name = "Ilia Petrov-Komotskii", email = "ilia@inkedkettle.art" }
@@ -12,7 +12,7 @@ authors = [
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.6"
-keywords = ["ROM", "library", "management", "tools"]
+keywords = ["ROM", "retro", "retro-game", "emulation", "management", "tools"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -25,7 +25,6 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/ManeFunction/romlm"
 Repository = "https://github.com/ManeFunction/romlm"
 
 [project.scripts]

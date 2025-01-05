@@ -11,7 +11,7 @@ from colorama import Fore, Style
 from tqdm import tqdm
 from multiprocessing import Pool, freeze_support
 
-version = "1.0.1"
+version = "1.0.2"
 
 def print_help():
 	print("Usage: \033[1mromlm\033[0m [parameters]")

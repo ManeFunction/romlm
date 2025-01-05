@@ -96,55 +96,23 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 
 ---
 
-## Usage examples and backstory
-
-As a user of Analogue Pocket and an Emulation Station based handheld system, there are some nuances from both worlds 
-that I'm trying to cover with **romlm**. Analogue Poket is a highly precise FPGA-based console, but it covers only
-earlier generations and a scoop of Arcade games. Though, those platforms, like NES, SNES and Genesis have a huge
-library of games, that should be sorted to have an easy access. Also, Pocket do not support archives, so all the ROMs
-should be unpacked. Standard software emulators, on the other hand, can play archived ROMs, and with the support 
-of more later platforms, where games became bigger, it's great to have them packed, but also, it's good to have 
-old systems packed as well, to save some Gigs for a few more CD games. So, I've need a tool to prepare my ROMs 
-for both systems in a few clicks. That's how **romlm** was born.
-
-
-Personally, I keep all my ROMs on Analogue Pocket, to be able to quickly launch any version of any game it supports. 
-But I do not need all of those for a device that made for casual play. To be honest, I have Powkidy RGB30 with 
-a rectangular screen, specifically for the Pico-8. Emulation capabilities of this device is just a neat bonus 
-for me :) So, to prepare ROMs for Emulation Station devices, like Powkiddy, Anbernic, Miyoo, etc. we can clean 
-our library from all the stuff we never play anyway. 
-
-
-There is an example how to separate and work with your Japanese library, if you need it. But it also can be a great
-example of **romlm** capabilities for you to learn. Emulation Station have a separate folders for Japanese libraries 
-(at least for the 3 whales of retro gaming: NES, SNES and Genesis) as well as for homebrew, 
-so it's good to separate them first, if you are interested in them. Here is the way:
-1) `-i ./your-roms -s a -f Japan -e USA,EN` command first to separate non-en Japanese releases 
-(they ends up in `!Japan` folder). Alternatively, you can use `-s f` if your collection do not have a lot of homebrew
-and pirates, and you do not need to sort them in (A-Z) folders.
-1) Put all sorted folders (A-Z) from `your-roms` folder to `your-roms/sorted` for example, to be able to treat them
-separately later.
-1) Now you should have `sorted`, `!Japan`, `!Homebrew` (if there was any) and `!Pirates` (if there was any) 
-folders in your `your-roms` folder. `!` is used here to keep them on top of the list, as Emulation Station sorts
-folders alphabetically, but remember, that you should escape it with `\!` in the command line, so path 
-for the next commands should look like `-i ./your-roms/\!Japan` for example.
-1) Do `-i ./your-roms/sorted -r -l` for all the subfolders separately to remove duplicates, but keep them in 
-sorted (mostly USA for now) and Japanese folders.
-1) After that you can pack all the ROMs in one command `-i ./your-roms -p`. This command keeps our new folders structure.
-
-This way you will keep all the Japanese versions of the games, separated into a dedicated folder, and anyways
-all other duplicates will be removed, easing the access to the games you want to play in the future and
-saving the space on your device for more great games.
-
-
----
-
 ## Installation
 
-**romlm** is available to use in a variety of ways.
-1) **brew (Recommended for Mac users)**
+**romlm** is available to use in a variety of ways.  
+`pip` or `brew` is recommended ways, because they can handle dependencies and updates automatically.
+1) **pip (Recommended for everyone with Python environment)**
+    - You can check if you have Python installed by running `python --version` in the Terminal or cmd.
+    - For Mac and Linux users, there is a high chance that you already have Python installed on your system.
+    - For Windows users, you can download Python from the [official website](https://www.python.org/downloads/).
+    - After confirmation, install **romlm** through the [PyPI](https://pypi.org/project/romlm) package manager, typing `pip install romlm` in the Terminal.
+      For Mac users, you may need to use `pip3` instead of `pip`.
+    - Verify the installation with `romlm -h` command.
+    - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
+1) **brew (Recommended for Mac and Linux users)**
     - You can install **romlm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
-      typing `brew install romlm` in the Terminal.
+      typing `brew install manefunction/tap/romlm` in the Terminal.
+    - Verify the installation with `romlm -h` command.
+    - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
 1) **Ready to use binaries (Mac and Windows)**
     - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
     - Unpack the downloaded archive.
@@ -169,15 +137,67 @@ saving the space on your device for more great games.
       - Run `cd path\to\folder` to go to the folder with `romlm.exe`.
       - Run `./romlm -h` to verify the script is working.
       - You are perfect, you can use the app now with `./romlm [parameters]` command.
-1) **Python script**
-    - if you know how to work with Python scripts, venv, and dependencies, you can simply clone the repository 
+1) **Python package (manual installation)**
+      - Clone the repository or download the source code from the GitHub.
+      - Go to the folder with the script in your Terminal.
+      - Run `pip install .` to install `romlm` to your system.
+      - Run `romlm -h` to verify the script is working.
+      - You are perfect, you can use `romlm [parameters]` command from anywhere in your system.
+1) **Python script (manual usage, for advanced users)**
+    - if you are familiar with Python scripts, venv, and dependencies, you can simply clone the repository 
       and run `romlm.py`. In that way, feel free to modify the script for yourself as you want.
+
+---
+
+## Backstory
+
+As a user of Analogue Pocket and an Emulation Station based handheld system, there are some nuances from both worlds
+that I'm trying to cover with **romlm**. Analogue Poket is a highly precise FPGA-based console, but it covers only
+earlier generations and a scoop of Arcade games. Though, those platforms, like NES, SNES and Genesis have a huge
+library of games, that should be sorted to have an easy access. Also, Pocket do not support archives, so all the ROMs
+should be unpacked. Standard software emulators, on the other hand, can play archived ROMs, and with the support
+of more later platforms, where games became bigger, it's great to have them packed, but also, it's good to have
+old systems packed as well, to save some Gigs for a few more CD games. So, I've need a tool to prepare my ROMs
+for both systems in a few clicks. That's how **romlm** was born.
+
+
+Personally, I keep all my ROMs on Analogue Pocket, to be able to quickly launch any version of any game it supports.
+But I do not need all of those for a device that made for casual play. To be honest, I have Powkidy RGB30 with
+a rectangular screen, specifically for the Pico-8. Emulation capabilities of this device is just a neat bonus
+for me :) So, to prepare ROMs for Emulation Station devices, like Powkiddy, Anbernic, Miyoo, etc. we can clean
+our library from all the stuff we never play anyway.
+
+---
+
+## Usage Examples
+
+There is an example how to separate and work with your Japanese library, if you need it. But it also can be a great
+example of **romlm** capabilities for you to learn. Emulation Station have a separate folders for Japanese libraries
+(at least for the 3 whales of retro gaming: NES, SNES and Genesis) as well as for homebrew,
+so it's good to separate them first, if you are interested in them. Here is the way:
+1) `-i ./your-roms -s a -f Japan -e USA,EN` command first to separate non-en Japanese releases
+   (they ends up in `!Japan` folder). Alternatively, you can use `-s f` if your collection do not have a lot of homebrew
+   and pirates, and you do not need to sort them in (A-Z) folders.
+1) Put all sorted folders (A-Z) from `your-roms` folder to `your-roms/sorted` for example, to be able to treat them
+   separately later.
+1) Now you should have `sorted`, `!Japan`, `!Homebrew` (if there was any) and `!Pirates` (if there was any)
+   folders in your `your-roms` folder. `!` is used here to keep them on top of the list, as Emulation Station sorts
+   folders alphabetically, but remember, that you should escape it with `\!` in the command line, so path
+   for the next commands should look like `-i ./your-roms/\!Japan` for example.
+1) Do `-i ./your-roms/sorted -r -l` for all the subfolders separately to remove duplicates, but keep them in
+   sorted (mostly USA for now) and Japanese folders.
+1) After that you can pack all the ROMs in one command `-i ./your-roms -p`. This command keeps our new folders structure.
+
+This way you will keep all the Japanese versions of the games, separated into a dedicated folder, and anyways
+all other duplicates will be removed, easing the access to the games you want to play in the future and
+saving the space on your device for more great games.
+
 
 ---
 
 ## Credits
 
-Created and maintained by ManeFunction.
+Created and maintained by ManeFunction (ilia@inkedkettle.art).
 
 Huge thanks to the [no-intro](http://www.no-intro.org/) team for their amazing work on the ROM sets and retro games
 preservation.
