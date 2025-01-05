@@ -98,8 +98,8 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 
 ## Installation
 
-**romlm** is available to use in a variety of ways.  
-`pip` or `brew` is recommended ways, because they have a convenient way to manage updates automatically.
+**romlm** is available from a variety of sources.  
+`pip` or `brew` is recommended, because they have a convenient way to manage updates automatically.
 1) **pip (Recommended for everyone with Python environment)**
     - You can check if you have Python installed by running `python --version` in the Terminal or cmd.
     - For Mac and Linux users, there is a high chance that you already have Python installed on your system.
