@@ -601,6 +601,12 @@ def is_next_optional_parameter(args, i) -> bool:
 	return i+1 < len(args) and not args[i+1].startswith("-")
 
 def mane():
+	# check for -v or --version argument
+	if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):
+		print(f"ROMs Library Manager v{version}")
+		sys.exit()
+	
+	# Print welcome message and init variables
 	print(f">> Welcome to ROMs Library Manager (v{version})")
 
 	separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
