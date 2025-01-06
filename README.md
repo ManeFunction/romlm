@@ -210,5 +210,5 @@ or create a or pull request.
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/ManeFunction/romlm)
 ![GitHub All Releases](https://img.shields.io/github/downloads/ManeFunction/romlm/total)
-![GitHub Stars](https://img.shields.io/github/stars/ManeFunction/romlm?style=social)
-![GitHub Watchers](https://img.shields.io/github/watchers/ManeFunction/romlm?style=social)
+![GitHub Stars](https://img.shields.io/github/stars/ManeFunction/romlm?style=flat)
+![GitHub Watchers](https://img.shields.io/github/watchers/ManeFunction/romlm?style=flat)
