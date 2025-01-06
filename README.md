@@ -207,3 +207,8 @@ Also, big shoutout to the [Nuitka](https://github.com/Nuitka/Nuitka) project for
 And of course, thanks for your contributions and feedback!
 If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page 
 or create a or pull request.
+
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/ManeFunction/romlm)
+![GitHub All Releases](https://img.shields.io/github/downloads/ManeFunction/romlm/total)
+![GitHub Stars](https://img.shields.io/github/stars/ManeFunction/romlm?style=social)
+![GitHub Watchers](https://img.shields.io/github/watchers/ManeFunction/romlm?style=social)
