@@ -114,7 +114,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
     - Verify the installation with `romlm -h` command.
     - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
 1) **Ready to use binaries (Recommended for Windows users)**
-    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases) and run it with `./romlm`.  
+    - Download ready-to-use binaries from the [GitHub Releases](https://github.com/ManeFunction/romlm/releases).  
     - Unpack the downloaded archive.
     - On Windows (cmd):
         - Open Command Prompt (cmd) with `Win+R` and typing `cmd`, or just searching `cmd` in a Start menu.
