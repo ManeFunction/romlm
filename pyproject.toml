@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "romlm"
-version = "1.0.2"
+version = "1.0.3"
 description = "A ROM library management tool."
 authors = [
     { name = "Ilia Petrov-Komotskii", email = "ilia@inkedkettle.art" }

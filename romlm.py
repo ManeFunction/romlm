@@ -13,7 +13,7 @@ from multiprocessing import Pool, freeze_support
 import tags
 import duplicates
 
-version = "1.0.2"
+version = "1.0.3"
 
 def print_help():
 	print("Usage: \033[1mromlm\033[0m [parameters]")
