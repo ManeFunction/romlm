@@ -109,8 +109,9 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
     - Verify the installation with `romlm -h` command.
     - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
 1) **brew (Recommended for Mac and Linux users)**
-    - You can install **romlm** through the [Homebrew](https://brew.sh/) formula for macOS users (if you have **brew** installed), 
-      typing `brew install manefunction/tap/romlm` in the Terminal.
+    - You can install **romlm** through the [Homebrew](https://brew.sh/) formula for macOS users, if you have **brew** installed.
+    - Type `brew tap manefunction/tap` in your Terminal to add my custom tap (app source) to your brew sources.
+    - Type `brew install romlm` to install application itself.
     - Verify the installation with `romlm -h` command.
     - You are perfect, you can use the app with `romlm [parameters]` command from any folder in your system.
 1) **Ready to use binaries (Recommended for Windows users)**
