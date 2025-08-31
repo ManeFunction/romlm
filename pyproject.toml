@@ -29,3 +29,9 @@ Repository = "https://github.com/ManeFunction/romlm"
 
 [project.scripts]
 romlm = "romlm:mane"
+
+[tool.setuptools]
+py-modules = ["romlm", "tags", "duplicates"]
+
+[tool.setuptools.package-dir]
+"" = "src"
