@@ -1,0 +1,19 @@
+source .venv/bin/activate
+
+# macos
+rm -rf romlm.dist romlm
+./.venv/bin/python -m nuitka --standalone romlm.py
+mv romlm.dist romlm
+mv romlm/romlm.bin romlm/romlm
+
+# brew
+./.venv/bin/python -m build
+
+# pip
+# the same build as for the brew +
+./.venv/bin/python -m twine upload dist/
+
+# win
+python -m nuitka --onefile romlm.py
+
+deactivate
