@@ -213,3 +213,4 @@ or create a or pull request.
 ![GitHub All Releases](https://img.shields.io/github/downloads/ManeFunction/romlm/total)
 ![GitHub Stars](https://img.shields.io/github/stars/ManeFunction/romlm?style=flat)
 ![GitHub Watchers](https://img.shields.io/github/watchers/ManeFunction/romlm?style=flat)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/ManeFunction?label=Sponsor&logo=GitHubSponsors&style=flat)](https://github.com/sponsors/ManeFunction)
