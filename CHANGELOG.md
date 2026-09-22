@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-22
+### Changed
+- Replaced the bundled `py7zr` library with shelling out to a system 7-Zip CLI (`7zz`/`7z`/`7za`) for `.7z`
+  archive handling. Behavior is unchanged, but `.7z` support now requires 7-Zip to be installed separately
+  (`brew install sevenzip` on macOS/Linux, the [official installer](https://www.7-zip.org/) on Windows) --
+  this removed 9 transitive C-extension dependencies that made packaging (especially for Homebrew) fragile.
+
 ## [1.0.3] - 2025-08-11
 ### Fixed
 - Fixed an issue when discs marked with a `track` tag was removed as duplicates.

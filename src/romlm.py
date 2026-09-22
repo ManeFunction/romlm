@@ -2,8 +2,8 @@ import sys
 import os
 import shutil
 import glob
+import subprocess
 from enum import Flag, auto
-import py7zr
 import zipfile
 import colorama
 from colorama import Fore, Style
@@ -13,7 +13,21 @@ from multiprocessing import Pool, freeze_support
 import tags
 import duplicates
 
-version = "1.0.3"
+version = "1.1.0"
+
+# Candidate binary names for a 7-Zip CLI, in preference order: "7zz" is what
+# Homebrew's sevenzip formula installs; "7z"/"7za" are the common names from
+# p7zip, apt/dnf packages, and the official Windows installer.
+SEVEN_ZIP_BINARY_NAMES = ("7zz", "7z", "7za")
+
+
+def find_seven_zip_binary():
+	"""Locate a usable 7-Zip CLI binary on PATH, or None if none is installed."""
+	for name in SEVEN_ZIP_BINARY_NAMES:
+		path = shutil.which(name)
+		if path:
+			return path
+	return None
 
 def print_help():
 	print("Usage: \033[1mromlm\033[0m [parameters]")
@@ -139,8 +153,11 @@ def process_file(args) -> tuple[str, str]:
 def unpack_file(file_name, target_folder) -> str:
 	"""Handles unpacking of a single file."""
 	if file_name.endswith(".7z"):
-		with py7zr.SevenZipFile(file_name, 'r') as archive:
-			archive.extractall(target_folder)
+		seven_zip_bin = find_seven_zip_binary()
+		subprocess.run(
+			[seven_zip_bin, "x", os.path.abspath(file_name), f"-o{os.path.abspath(target_folder)}", "-y"],
+			check=True, capture_output=True,
+		)
 	elif file_name.endswith(".zip"):
 		with zipfile.ZipFile(file_name, 'r') as archive:
 			archive.extractall(target_folder)
@@ -151,8 +168,15 @@ def pack_file(file_name, target_folder, packing_format) -> str:
 	"""Handles packing of a single file."""
 	archive_path = os.path.join(target_folder, os.path.basename(file_name))
 	if packing_format == "7z":
-		with py7zr.SevenZipFile(str(archive_path) + ".7z", 'w') as archive:
-			archive.write(file_name, arcname=os.path.basename(file_name))
+		seven_zip_bin = find_seven_zip_binary()
+		# Run with cwd set to the source file's folder, passing only its basename,
+		# so the archive stores just that name (matching the old arcname behavior)
+		# instead of the full source path.
+		subprocess.run(
+			[seven_zip_bin, "a", os.path.abspath(str(archive_path) + ".7z"), os.path.basename(file_name)],
+			cwd=os.path.dirname(os.path.abspath(file_name)),
+			check=True, capture_output=True,
+		)
 	elif packing_format == "zip":
 		with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
 			archive.write(file_name, arcname=os.path.basename(file_name))
@@ -303,6 +327,11 @@ def mane():
 			and is_remove_duplicates is False):
 		print(f"{Fore.YELLOW}Nothing to do...{Style.RESET_ALL}")
 		sys.exit()
+
+	if (is_unpacking_enabled or (is_packing_enabled and packing_format == "7z")) and find_seven_zip_binary() is None:
+		print(f"{Fore.RED}Error: No 7-Zip binary (7zz/7z/7za) found on PATH.{Style.RESET_ALL}")
+		print("Install 7-Zip and make sure it's on your PATH, e.g. 'brew install sevenzip' on macOS/Linux.")
+		sys.exit(1)
 
 	if not os.path.exists(input_folder):
 		print(f"{Fore.RED}Error: The specified input folder '{input_folder}' does not exist.{Style.RESET_ALL}")
