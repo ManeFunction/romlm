@@ -202,7 +202,7 @@ saving the space on your device for more great games.
 
 ## Credits
 
-Created and maintained by ManeFunction (ilia@inkedkettle.art).
+Created and maintained by ManeFunction (ilia@inkedkettle.games).
 
 Huge thanks to the [no-intro](http://www.no-intro.org/) team for their amazing work on the ROM sets and retro games
 preservation.
