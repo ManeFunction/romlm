@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Smoke test the built wheel
+        run: |
+          python -m venv /tmp/romlm-venv
+          /tmp/romlm-venv/bin/pip install dist/*.whl
+          /tmp/romlm-venv/bin/romlm -v
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  windows-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip tqdm colorama nuitka
+
+      - name: Build standalone exe
+        run: >
+          python -m nuitka --onefile --assume-yes-for-downloads
+          --output-filename=romlm.exe --output-dir=dist src/romlm.py
+
+      - name: Smoke test the exe
+        run: dist/romlm.exe -v
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-exe
+          path: dist/romlm.exe
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for PyPI trusted publishing, no API token stored
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [publish-pypi, windows-exe]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create a GitHub Release
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-exe
+          path: dist/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+
+  bump-homebrew-formula:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: dawidd6/action-homebrew-bump-formula@v10
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          tap: ManeFunction/homebrew-tap
+          formula: romlm
+          no_fork: "true"
