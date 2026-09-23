@@ -213,6 +213,8 @@ And of course, thanks for your contributions and feedback!
 If you have any questions, suggestions, or issues, feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page 
 or create a or pull request.
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/ManeFunction/romlm)
-![GitHub All Releases](https://img.shields.io/github/downloads/ManeFunction/romlm/total)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/ManeFunction/romlm)](https://github.com/ManeFunction/romlm/releases/latest)
+[![GitHub All Releases](https://img.shields.io/github/downloads/ManeFunction/romlm/total)](https://github.com/ManeFunction/romlm/releases)
+[![PyPI version](https://img.shields.io/pypi/v/romlm)](https://pypi.org/project/romlm/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/romlm)](https://pypi.org/project/romlm/)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/ManeFunction?label=Sponsor&logo=GitHubSponsors&style=flat)](https://github.com/sponsors/ManeFunction)
