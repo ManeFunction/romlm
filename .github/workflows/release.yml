@@ -77,6 +77,10 @@ jobs:
     permissions:
       contents: write # required to create a GitHub Release
     steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history + tags -- needed to diff against the previous release tag
+
       - uses: actions/download-artifact@v8
         with:
           name: dist
@@ -87,6 +91,25 @@ jobs:
           name: windows-exe
           path: dist/
 
+      - name: Build release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          RANGE="${PREV_TAG:+$PREV_TAG..}${GITHUB_REF_NAME}"
+
+          python3 .github/scripts/categorize_changelog.py "$RANGE" > changelog_section.md
+
+          gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+            -f tag_name="$GITHUB_REF_NAME" --jq .body > auto_notes.md
+
+          {
+            cat auto_notes.md
+            echo ""
+            echo ""
+            cat changelog_section.md
+          } > release_notes.md
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,7 +117,7 @@ jobs:
           gh release create "$GITHUB_REF_NAME" dist/* \
             --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
-            --generate-notes
+            --notes-file release_notes.md
 
   bump-homebrew-formula:
     needs: publish-pypi
