@@ -5,10 +5,12 @@ subject lines in a git range, e.g. "v1.0.0..v1.1.0" (or just "v1.0.0" for
 everything up to and including that tag, when there's no previous tag).
 
 Only "feat", "fix", and "refactor" commits are included (optionally with a
-"(scope)" and/or a "!" for breaking changes, e.g. "feat(cli)!: ..."). Every
-other prefix ("meta", "dev", "chore", etc.) is ignored. Each list item is the
-commit subject with the "prefix(scope)!: " part stripped -- everything after
-the first ": ".
+"(scope)" and/or a "!" for breaking changes, e.g. "feat!: ...",
+"feat!(cli): ...", or "fix(cli)!: ..." -- the "!" can sit on either side of
+the scope). Every other prefix ("meta", "dev", "chore", etc.) is ignored.
+Each list item is the commit subject with the "prefix(scope)!: " part
+stripped -- everything after the first ": " -- and, when a "!" was present,
+prefixed with "BREAKING CHANGE: ".
 
 Usage:
     python3 categorize_changelog.py <git-range>
@@ -36,12 +38,14 @@ def main() -> int:
         "fix": ("Fixes", []),
         "refactor": ("Refactor", []),
     }
-    pattern = re.compile(r"^(feat|fix|refactor)(\([^)]*\))?!?: (.+)$")
+    pattern = re.compile(r"^(feat|fix|refactor)(!)?(\([^)]*\))?(!)?: (.+)$")
 
     for subject in subjects:
         m = pattern.match(subject)
         if m:
-            prefix, _scope, rest = m.groups()
+            prefix, bang_before_scope, _scope, bang_after_scope, rest = m.groups()
+            if bang_before_scope or bang_after_scope:
+                rest = f"BREAKING CHANGE: {rest}"
             sections[prefix][1].append(rest)
 
     blocks = []
