@@ -95,9 +95,9 @@ class CleanDuplicatesTest(unittest.TestCase):
     def left(self):
         return sorted(os.listdir(self.folder.name))
 
-    def clean(self, paths, action=Action.KEEP_ALL):
+    def clean(self, paths, action=Action.KEEP_ALL, **effects):
         with contextlib.redirect_stdout(io.StringIO()):
-            return duplicates.clean_duplicates(paths, action, True, False)
+            return duplicates.clean_duplicates(paths, action, True, False, **effects)
 
     def test_bios_files_are_never_removed(self):
         paths = self.make("[BIOS] Sega CD (USA).bin", "[BIOS] Sega CD (Europe).bin", "[BIOS] Saturn (USA).bin")
@@ -123,15 +123,42 @@ class CleanDuplicatesTest(unittest.TestCase):
     def test_ask_keeps_the_chosen_file(self):
         paths = self.make("Game (USA) (Foo).nes", "Game (USA) (Bar).nes")
         # The tied files are offered in the order they were given: 1 is Foo, 2 is Bar
-        with mock.patch("builtins.input", side_effect=["x", "2"]):
-            self.clean(paths, Action.ASK)
+        asked = []
+        def choose(candidates, number):
+            asked.append([r.name for r in candidates])
+            return candidates[1]
+        self.clean(paths, Action.ASK, choose=choose)
+        self.assertEqual(asked, [["Game (USA) (Foo).nes", "Game (USA) (Bar).nes"]])
         self.assertEqual(self.left(), ["Game (USA) (Bar).nes"])
 
-    def test_ask_zero_keeps_all(self):
+    def test_ask_none_keeps_all(self):
         paths = self.make("Game (USA) (Foo).nes", "Game (USA) (Bar).nes")
-        with mock.patch("builtins.input", return_value="0"):
-            self.clean(paths, Action.ASK)
+        self.clean(paths, Action.ASK, choose=lambda candidates, number: None)
         self.assertEqual(len(self.left()), 2)
+
+    def test_nothing_is_removed_before_all_the_questions_are_answered(self):
+        paths = self.make("A (Europe).nes", "A (USA).nes", "B (USA) (Foo).nes", "B (USA) (Bar).nes")
+        removed = []
+        def interrupt(candidates, number):
+            raise KeyboardInterrupt
+        with self.assertRaises(KeyboardInterrupt):
+            self.clean(paths, Action.ASK, choose=interrupt, remove=removed.append)
+        self.assertEqual(removed, [])
+        self.assertEqual(len(self.left()), 4)
+
+    def test_removes_through_the_given_function(self):
+        paths = self.make("Game (Europe).nes", "Game (USA).nes")
+        removed = []
+        self.clean(paths, remove=removed.append)
+        self.assertEqual([os.path.basename(p) for p in removed], ["Game (Europe).nes"])
+        self.assertEqual(len(self.left()), 2)
+
+    def test_ask_prompt_reads_a_number(self):
+        releases = [Release.parse("Game (USA) (Foo).nes"), Release.parse("Game (USA) (Bar).nes")]
+        with mock.patch("builtins.input", side_effect=["x", "9", "2"]), contextlib.redirect_stdout(io.StringIO()):
+            self.assertIs(duplicates.ask_which_to_keep(releases, ""), releases[1])
+        with mock.patch("builtins.input", return_value="0"), contextlib.redirect_stdout(io.StringIO()):
+            self.assertIsNone(duplicates.ask_which_to_keep(releases, ""))
 
     def test_discs_of_one_game_are_kept(self):
         paths = self.make("Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin", "Game (Europe) (Disc 1).bin")

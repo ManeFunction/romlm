@@ -259,22 +259,19 @@ def ask_which_to_keep(candidates, number):
 def keep_one(releases, selected, is_log_enabled, number) -> list:
     if is_log_enabled:
         print(f"{number}Removing duplicate(s):")
-    for release in releases:
-        if release is not selected:
-            if is_log_enabled:
+        for release in releases:
+            if release is not selected:
                 print(f"- {Fore.RED}{release.name}{Style.RESET_ALL}")
-            os.remove(release.path)
-    if is_log_enabled:
         print(f"| >> Keeping one: {Fore.GREEN}{selected.name}{Style.RESET_ALL}")
     return [selected]
 
-def resolve_ties(ties, action, is_log_enabled, number) -> list:
-    """Removes the releases that the action doesn't keep, and returns the kept ones."""
+def resolve_ties(ties, action, choose, is_log_enabled, number) -> list:
+    """Picks the releases that the action keeps among the equally good ones."""
     if action == Action.KEEP_ONE:
         return keep_one(ties, min(ties, key=lambda r: r.path), is_log_enabled, number)
 
     if action == Action.ASK:
-        selected = ask_which_to_keep(ties, number)
+        selected = choose(ties, number)
         if selected is not None:
             return keep_one(ties, selected, is_log_enabled, number)
 
@@ -283,38 +280,46 @@ def resolve_ties(ties, action, is_log_enabled, number) -> list:
         print_files_list(ties, Fore.GREEN)
     return ties
 
-def apply_group(plan, action, is_log_enabled, number) -> list:
-    """Carries out the plan: removes files, asks and logs. Returns the releases that are kept."""
+@dataclass
+class Decision:
+    """The final verdict for one game. Nothing is removed until all the games are decided."""
+    kept: list
+    removed: list
+
+def decide_group(plan, action, choose, is_log_enabled, number) -> Decision:
+    """Settles the ties of the plan (asking if needed) and logs. Doesn't touch the files."""
     if not plan.keep and not plan.ties:
         raise ValueError("Refusing to remove all the files of a game")
 
-    if plan.betas_dropped:
-        if is_log_enabled:
-            print(f"{number}Removing all Betas: ")
-            print_files_list(plan.betas_dropped, Fore.RED)
-            print(f" | >> Has {len(plan.releases)} release(s):")
-            print_files_list(plan.releases, Fore.GREEN)
-        for r in plan.betas_dropped:
-            os.remove(r.path)
+    removed = list(plan.betas_dropped)
+    if plan.betas_dropped and is_log_enabled:
+        print(f"{number}Removing all Betas: ")
+        print_files_list(plan.betas_dropped, Fore.RED)
+        print(f" | >> Has {len(plan.releases)} release(s):")
+        print_files_list(plan.releases, Fore.GREEN)
 
     label = "Removing earlier Beta" if plan.is_beta_group else "Removing duplicate"
     for r in plan.remove:
         if is_log_enabled:
             print(f"{number}{label}: {Fore.RED}{r.name}{Style.RESET_ALL}")
-        os.remove(r.path)
+        removed.append(r)
 
     kept = list(plan.keep)
     if plan.ties:
-        kept += resolve_ties(plan.ties, action, is_log_enabled, number)
+        tied_kept = resolve_ties(plan.ties, action, choose, is_log_enabled, number)
+        kept += tied_kept
+        removed += [r for r in plan.ties if r not in tied_kept]
 
     if is_log_enabled and len(kept) == 1:
         print(f"{number}{plan.verdict}: {Fore.GREEN}{kept[0].name}{Style.RESET_ALL}")
-    return kept
+    return Decision(kept, removed)
 
-def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
+def clean_duplicates(file_list, action, is_log_enabled, is_debug_log, choose=ask_which_to_keep, remove=os.remove):
     """
     Removes the worse files of every game (see plan_group), and returns the files that are left.
+    Everything is decided, including the questions to the user, before the first file is removed.
     [BIOS] files are never grouped nor removed.
+    `choose` answers the questions of the Action.ASK, `remove` deletes a file.
     """
 
     # Group files by game
@@ -338,14 +343,19 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
         len(by_game),
     )
 
-    # MAIN LOOP of removing duplicates
+    # MAIN LOOP of deciding what to remove
     groups_iter = by_game.values() if is_log_enabled \
         else tqdm(by_game.values(), desc="Cleaning Duplicates", total=len(by_game))
 
+    files_to_remove = []
     for i, releases in enumerate(groups_iter, start=1):
         plan = plan_group(releases, is_debug_log)
-        kept = apply_group(plan, action, is_log_enabled, f"({i}/{len(by_game)}) ")
-        files_to_keep.update(r.path for r in kept)
+        decision = decide_group(plan, action, choose, is_log_enabled, f"({i}/{len(by_game)}) ")
+        files_to_keep.update(r.path for r in decision.kept)
+        files_to_remove += [r.path for r in decision.removed]
+
+    for path in files_to_remove:
+        remove(path)
 
     # Return only files we decided to keep
     return [f for f in file_list if f in files_to_keep]
