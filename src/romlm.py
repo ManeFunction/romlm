@@ -1,45 +1,25 @@
 import sys
 import os
-import shutil
 import glob
-import subprocess
 import argparse
 from dataclasses import dataclass
 from enum import Flag, auto
-import zipfile
 import colorama
 from colorama import Fore, Style
-from tqdm import tqdm
-from multiprocessing import Pool, freeze_support
+from multiprocessing import freeze_support
 
+import archives
 import duplicates
+import operations
 from tags import Release
 
 version = "1.1.0"
-
-# Candidate binary names for a 7-Zip CLI, in preference order: "7zz" is what
-# Homebrew's sevenzip formula installs; "7z"/"7za" are the common names from
-# p7zip, apt/dnf packages, and the official Windows installer.
-SEVEN_ZIP_BINARY_NAMES = ("7zz", "7z", "7za")
-
-
-def find_seven_zip_binary():
-	"""Locate a usable 7-Zip CLI binary on PATH, or None if none is installed."""
-	for name in SEVEN_ZIP_BINARY_NAMES:
-		path = shutil.which(name)
-		if path:
-			return path
-	return None
 
 class CategoryOption(Flag):
 	HOMEBREW = auto()
 	PIRATES = auto()
 	SUBFOLDERS = auto()
 
-def create_if_not_exist(folder):
-	if not os.path.exists(folder):
-		os.makedirs(folder)
-		
 def get_lettered_folder_name(filename) -> str:
 	folder_name = filename[0].upper() if filename else ''
 	if folder_name == "[":
@@ -78,7 +58,6 @@ def get_new_folder(filename, separation_options, sorting_options, subfolders, ex
 	else:
 		folder_name = get_lettered_folder_name(filename)
 
-	create_if_not_exist(folder_name)
 	return folder_name
 
 def remove_meta_files(path, is_log_enabled):
@@ -104,76 +83,6 @@ def remove_empty_subfolders(path, is_log_enabled):
 					if is_log_enabled:
 						print(f"Removed empty folder: {Fore.RED}{parent_dir}{Style.RESET_ALL}")
 					parent_dir = os.path.dirname(parent_dir)
-
-def move_file(file_name, target_folder):
-	"""Moves a file into the target folder. Returns a log line, or None if it is already there."""
-	if os.path.normpath(os.path.dirname(file_name) or ".") == os.path.normpath(target_folder):
-		return None
-	shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
-	return f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}"
-
-def describe_error(error) -> str:
-	"""A one-line reason of why a file could not be processed."""
-	if isinstance(error, subprocess.CalledProcessError):
-		output = error.stderr or error.stdout or b""
-		details = output.decode(errors="replace").strip().splitlines()
-		return f"7-Zip failed with code {error.returncode}" + (f": {details[-1]}" if details else "")
-	return f"{type(error).__name__}: {error}"
-
-def process_file(args) -> tuple[str, str, str]:
-	"""Processes a single file for packing or unpacking. Returns the file name, a log line and an error message."""
-	file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format = args
-	try:
-		if is_unpacking_enabled and file_name.endswith((".7z", ".zip")):
-			result_log = unpack_file(file_name, target_folder)
-		elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not Release.parse(file_name).is_bios:
-			result_log = pack_file(file_name, target_folder, packing_format)
-		else:
-			# Nothing to pack or unpack, but the file still has to follow the sorting
-			result_log = move_file(file_name, target_folder)
-	except Exception as error:
-		return file_name, None, describe_error(error)
-	return file_name, result_log, None
-
-def unpack_file(file_name, target_folder) -> str:
-	"""Handles unpacking of a single file."""
-	if file_name.endswith(".7z"):
-		seven_zip_bin = find_seven_zip_binary()
-		subprocess.run(
-			[seven_zip_bin, "x", os.path.abspath(file_name), f"-o{os.path.abspath(target_folder)}", "-y"],
-			check=True, capture_output=True,
-		)
-	elif file_name.endswith(".zip"):
-		with zipfile.ZipFile(file_name, 'r') as archive:
-			archive.extractall(target_folder)
-	os.remove(file_name)
-	return f" >> Unpacked to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}"
-
-def pack_file(file_name, target_folder, packing_format) -> str:
-	"""Handles packing of a single file."""
-	archive_path = os.path.join(target_folder, os.path.basename(file_name))
-	archive_file = f"{archive_path}.{packing_format}"
-	try:
-		if packing_format == "7z":
-			seven_zip_bin = find_seven_zip_binary()
-			# Run with cwd set to the source file's folder, passing only its basename,
-			# so the archive stores just that name (matching the old arcname behavior)
-			# instead of the full source path.
-			subprocess.run(
-				[seven_zip_bin, "a", os.path.abspath(archive_file), os.path.basename(file_name)],
-				cwd=os.path.dirname(os.path.abspath(file_name)),
-				check=True, capture_output=True,
-			)
-		elif packing_format == "zip":
-			with zipfile.ZipFile(archive_file, 'w', zipfile.ZIP_DEFLATED) as archive:
-				archive.write(file_name, arcname=os.path.basename(file_name))
-	except Exception:
-		# Don't leave a half-written archive next to the source file
-		if os.path.exists(archive_file):
-			os.remove(archive_file)
-		raise
-	os.remove(file_name)
-	return f" >> Packed to: {Fore.BLUE}{archive_file}{Style.RESET_ALL}"
 
 DUPLICATES_ACTIONS = {
 	"ask": duplicates.Action.ASK,
@@ -320,7 +229,7 @@ def run(options):
 		sys.exit()
 
 	if (options.is_unpacking_enabled or (options.is_packing_enabled and options.packing_format == "7z")) \
-			and find_seven_zip_binary() is None:
+			and archives.find_seven_zip_binary() is None:
 		print(f"{Fore.RED}Error: No 7-Zip binary (7zz/7z/7za) found on PATH.{Style.RESET_ALL}")
 		print("Install 7-Zip and make sure it's on your PATH, e.g. 'brew install sevenzip' on macOS/Linux.")
 		sys.exit(1)
@@ -351,39 +260,14 @@ def run(options):
 	# Process files
 	failures = []
 	if options.is_sort_enabled or options.is_unpacking_enabled or options.is_packing_enabled:
-		# Single-threaded processing for just a move operation
-		if not options.is_unpacking_enabled and not options.is_packing_enabled:
-			print(">> Processing files...")
-			progress = files_list if options.is_log_enabled else tqdm(files_list, desc="Processing")
-
-			for file_name in progress:
-				result_log = move_file(file_name, target_folder_for(file_name, options))
-				if options.is_log_enabled and result_log is not None:
-					print(result_log)
-		else:
-			# Multithreaded processing for packing/unpacking
+		if options.is_unpacking_enabled or options.is_packing_enabled:
 			print(">> Preparing processing...")
-			tasks = [(file_name, target_folder_for(file_name, options), options.is_unpacking_enabled,
-					  options.is_packing_enabled, options.packing_format) for file_name in files_list]
+		planned = operations.plan_operations(files_list, lambda file_name: target_folder_for(file_name, options),
+											 options.is_unpacking_enabled, options.is_packing_enabled,
+											 options.packing_format)
 
-			print(">> Processing files...")
-			if options.is_log_enabled:
-				with Pool(processes=os.cpu_count()) as pool:
-					for i, (f_name, result_log, error) in enumerate(pool.imap_unordered(process_file, tasks), start=1):
-						if error is not None:
-							failures.append((f_name, error))
-							print(f"({i}/{len(tasks)}) Failed: {Fore.RED}{f_name}{Style.RESET_ALL} ({error})")
-						else:
-							print(f"({i}/{len(tasks)}) Processed: {Fore.GREEN}{f_name}{Style.RESET_ALL}")
-							if result_log is not None:
-								print(result_log)
-			else:
-				with Pool(processes=os.cpu_count()) as pool:
-					with tqdm(total=len(tasks), desc="Processing") as progress:
-						for f_name, _, error in pool.imap_unordered(process_file, tasks):
-							if error is not None:
-								failures.append((f_name, error))
-							progress.update(1)
+		print(">> Processing files...")
+		failures = operations.run_operations(planned, options.is_log_enabled)
 
 		remove_meta_files(".", options.is_log_enabled)
 		remove_empty_subfolders(".", options.is_log_enabled)
