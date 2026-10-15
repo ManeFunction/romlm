@@ -3,6 +3,8 @@ import os
 import shutil
 import glob
 import subprocess
+import argparse
+from dataclasses import dataclass
 from enum import Flag, auto
 import zipfile
 import colorama
@@ -28,44 +30,6 @@ def find_seven_zip_binary():
 		if path:
 			return path
 	return None
-
-def print_help():
-	print("Usage: \033[1mromlm\033[0m [parameters]")
-	print("Parameters:\n")
-	print("-i, --input [folder]         Specify the input folder.")
-	print("                             Default is the current folder.\n")
-	print("-s, --sort [options]         Sort files into lettered subfolders (A-Z).")
-	print("                             Options indicates is special folders should be")
-	print("                             also sorted. Can be:")
-	print("                             'h' - homebrew")
-	print("                             'p' - pirates")
-	print("                             'f' - user-defined folders")
-	print("                             'a' - all")
-	print("                             or use any combinations, like 'hp' or 'ps'.")
-	print("                             'reverse' - un-sort ROMs, placing all in the root.\n")
-	print("-x, --extract                Extract all 7z/zip files in the folder.\n")
-	print("-p, --pack [format]          Pack all files in the folder to 7z/zip format.")
-	print("                             [format] can be '7z' or 'zip'. Default is '7z'.\n")
-	print("-u, --unlicensed [options]   Disable Homebrew and Pirate stuff separation")
-	print("                             to the different folders. [options] can be:")
-	print("                             'h' - separate homebrew only")
-	print("                             'p' - separate pirates only")
-	print("                             'none' - do not separate anything")
-	print("                             Separation enabled by default.\n")
-	print("-r, --remove-duplicates      Remove duplicate files.")
-	print("                             When program stuck with more than one 'best' ROMs:")
-	print("                             'ask' - will ask which file to keep.")
-	print("                             'all' - will keep all best files.")
-	print("                             'one' - will keep only one best file (the first by name).")
-	print("                             If --log, default is 'ask', otherwise 'all'.")
-	print("                             --log is recommended for this process.\n")
-	print("-f, --folders [list]         Define subfolders to place files, based on tags.\n")
-	print("-e, --exclude [list]         Exclude files with specified tags from -f process.\n")
-	print("-h, --help                   Show this help message.\n")
-	print("-l, --log                    Enable full logging instead of progressbars.\n")
-	print("For more details and examples or to support an author,")
-	print("please check the README file or visit the GitHub repository:")
-	print(f"{Fore.CYAN}https://github.com/ManeFunction/romlm{Style.RESET_ALL}")
 
 class CategoryOption(Flag):
 	HOMEBREW = auto()
@@ -210,209 +174,199 @@ def pack_file(file_name, target_folder, packing_format) -> str:
 	os.remove(file_name)
 	return f" >> Packed to: {Fore.BLUE}{archive_file}{Style.RESET_ALL}"
 
-def is_next_optional_parameter(args, i) -> bool:
-	return i+1 < len(args) and not args[i+1].startswith("-")
+DUPLICATES_ACTIONS = {
+	"ask": duplicates.Action.ASK,
+	"all": duplicates.Action.KEEP_ALL,
+	"one": duplicates.Action.KEEP_ONE,
+}
 
-def mane():
-	# check for -v or --version argument
-	if len(sys.argv) == 2 and sys.argv[1] in ("-v", "--version"):
-		print(f"ROMs Library Manager v{version}")
-		sys.exit()
-	
-	# Print welcome message and init variables
-	print(f">> Welcome to ROMs Library Manager (v{version})")
+@dataclass(frozen=True)
+class Options:
+	"""Everything the command line can ask for."""
+	input_folder: str
+	is_sort_enabled: bool
+	is_reverse_sort: bool
+	sort_options: CategoryOption
+	separation_options: CategoryOption
+	subfolders: list
+	exclude_tags: list
+	is_unpacking_enabled: bool
+	is_packing_enabled: bool
+	packing_format: str
+	is_remove_duplicates: bool
+	remove_duplicates_action: duplicates.Action
+	is_log_enabled: bool
+	is_debug_log: bool
 
-	separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
-	is_sort_enabled = False
-	sort_options = CategoryOption(0)
-	is_reverse_sort = False
-	is_unpacking_enabled = False
-	is_packing_enabled = False
-	packing_format = "7z"
-	is_log_enabled = False
-	is_debug_log = False
-	is_remove_duplicates = False
-	remove_duplicates_action = duplicates.Action.NOT_DEFINED
-	subfolders = None
-	exclude_tags = None
-	input_folder = "."
+def parse_category_flags(value, allowed) -> CategoryOption:
+	"""Reads option letters like 'hp', where 'a' stands for all the allowed ones."""
+	flags = {"h": CategoryOption.HOMEBREW, "p": CategoryOption.PIRATES, "f": CategoryOption.SUBFOLDERS}
+	result = CategoryOption(0)
+	for letter in value:
+		if letter == "a":
+			for allowed_letter in allowed:
+				result |= flags[allowed_letter]
+		elif letter in allowed:
+			result |= flags[letter]
+		else:
+			raise argparse.ArgumentTypeError(f"unknown option '{value}', use '{allowed}' letters, 'a' or 'none'")
+	return result
 
-	colorama.init()
+def sort_argument(value):
+	if value == "reverse":
+		return value
+	return CategoryOption(0) if value == "none" else parse_category_flags(value, "hpf")
 
-	# Parse command line arguments
-	args = sys.argv[1:]
-	skip_next = False
-	for i, arg in enumerate(args):
-		if skip_next:
-			skip_next = False
-			continue
-		if arg in ("-h", "--help"):
-			print_help()
-			sys.exit()
-		if arg in ("-x", "--extract"):
-			is_unpacking_enabled = True
-		elif arg in ("-p", "--pack"):
-			is_packing_enabled = True
-			if is_next_optional_parameter(args, i):
-				pack_param = args[i+1]
-				if pack_param == "7z":
-					packing_format = "7z"
-				elif pack_param == "zip":
-					packing_format = "zip"
-				else:
-					print(f"{Fore.RED}Error: Unknown format '{pack_param}'! --pack only supports '7z' or 'zip'.{Style.RESET_ALL}")
-					sys.exit(1)
-				skip_next = True
-		elif arg in ("-u", "--unlicensed"):
-			# Bare "-u" disables the separation, same as "-u none"
-			separation_options = CategoryOption(0)
-			if is_next_optional_parameter(args, i):
-				keep_params = args[i+1]
-				if keep_params != "none":
-					if set(keep_params) - set("hpa"):
-						print(f"{Fore.RED}Error: Unknown option '{keep_params}'! --unlicensed only supports 'h', 'p', 'a' or 'none'.{Style.RESET_ALL}")
-						sys.exit(1)
-					if 'a' in keep_params or 'h' in keep_params:
-						separation_options |= CategoryOption.HOMEBREW
-					if 'a' in keep_params or 'p' in keep_params:
-						separation_options |= CategoryOption.PIRATES
-				skip_next = True
-		elif arg in ("-s", "--sort"):
-			is_sort_enabled = True
-			if is_next_optional_parameter(args, i):
-				sort_params = args[i+1]
-				if sort_params == "reverse":
-					is_reverse_sort = True
-				else:
-					if sort_params == "none":
-						sort_options = CategoryOption(0)
-					elif 'a' in sort_params:
-						sort_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES | CategoryOption.SUBFOLDERS
-					else:
-						if 'h' in sort_params:
-							sort_options |= CategoryOption.HOMEBREW
-						if 'p' in sort_params:
-							sort_options |= CategoryOption.PIRATES
-						if 'f' in sort_params:
-							sort_options |= CategoryOption.SUBFOLDERS
-				skip_next = True
-		elif arg in ("-l", "--log"):
-			is_log_enabled = True
-		elif arg == "--debug":
-			is_debug_log = True
-		elif arg in ("-r", "--remove-duplicates"):
-			is_remove_duplicates = True
-			if is_next_optional_parameter(args, i):
-				remove_duplicates_param = args[i+1]
-				if remove_duplicates_param == "ask":
-					remove_duplicates_action = duplicates.Action.ASK
-				elif remove_duplicates_param == "all":
-					remove_duplicates_action = duplicates.Action.KEEP_ALL
-				elif remove_duplicates_param == "one":
-					remove_duplicates_action = duplicates.Action.KEEP_ONE
-				else:
-					print(f"{Fore.RED}Error: Unknown action '{remove_duplicates_param}'! --remove-duplicates only supports 'ask', 'all' or 'one'.{Style.RESET_ALL}")
-					sys.exit(1)
-				skip_next = True
-		elif arg in ("-f", "--folders"):
-			if i+1 < len(args):
-				subfolders = args[i+1].split(",")
-				if is_log_enabled:
-					print("Subfolders:", subfolders)
-				skip_next = True
-			else:
-				print(f"{Fore.RED}Error: --subfolders requires a comma-separated list of subfolders.{Style.RESET_ALL}")
-				sys.exit(1)
-		elif arg in ("-e", "--exclude"):
-			if i+1 < len(args):
-				exclude_tags = args[i+1].split(",")
-				if is_log_enabled:
-					print("Exclude tags:", exclude_tags)
-				skip_next = True
-			else:
-				print(f"{Fore.RED}Error: --exclude requires a comma-separated list of tags.{Style.RESET_ALL}")
-				sys.exit(1)
-		elif arg in ("-i", "--input"):
-			if i+1 < len(args):
-				input_folder = args[i+1]
-				skip_next = True
-			else:
-				print(f"{Fore.RED}Error: --input requires a folder path.{Style.RESET_ALL}")
-				sys.exit(1)
-				
-	# Set default action for duplicates removal
+def unlicensed_argument(value) -> CategoryOption:
+	return CategoryOption(0) if value == "none" else parse_category_flags(value, "hp")
+
+def build_parser() -> argparse.ArgumentParser:
+	parser = argparse.ArgumentParser(
+		prog="romlm", usage="%(prog)s [parameters]", add_help=False, allow_abbrev=False,
+		formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=29),
+		epilog="For more details and examples or to support an author,\n"
+			   "please check the README file or visit the GitHub repository:\n"
+			   f"{Fore.CYAN}https://github.com/ManeFunction/romlm{Style.RESET_ALL}")
+
+	parser.add_argument("-i", "--input", metavar="folder", default=".",
+		help="Specify the input folder.\nDefault is the current folder.\n")
+	parser.add_argument("-s", "--sort", metavar="options", nargs="?", const=True, type=sort_argument,
+		help="Sort files into lettered subfolders (A-Z).\n"
+			 "Options indicates is special folders should be\n"
+			 "also sorted. Can be:\n"
+			 "'h' - homebrew\n"
+			 "'p' - pirates\n"
+			 "'f' - user-defined folders\n"
+			 "'a' - all\n"
+			 "or use any combinations, like 'hp' or 'ps'.\n"
+			 "'reverse' - un-sort ROMs, placing all in the root.\n")
+	archives = parser.add_mutually_exclusive_group()
+	archives.add_argument("-x", "--extract", action="store_true",
+		help="Extract all 7z/zip files in the folder.\n")
+	archives.add_argument("-p", "--pack", metavar="format", nargs="?", const="7z", choices=("7z", "zip"),
+		help="Pack all files in the folder to 7z/zip format.\n"
+			 "[format] can be '7z' or 'zip'. Default is '7z'.\n")
+	parser.add_argument("-u", "--unlicensed", metavar="options", nargs="?", const=CategoryOption(0), type=unlicensed_argument,
+		help="Disable Homebrew and Pirate stuff separation\n"
+			 "to the different folders. [options] can be:\n"
+			 "'h' - separate homebrew only\n"
+			 "'p' - separate pirates only\n"
+			 "'none' - do not separate anything\n"
+			 "Separation enabled by default.\n")
+	parser.add_argument("-r", "--remove-duplicates", metavar="action", nargs="?", const=True, choices=tuple(DUPLICATES_ACTIONS),
+		help="Remove duplicate files.\n"
+			 "When program stuck with more than one 'best' ROMs:\n"
+			 "'ask' - will ask which file to keep.\n"
+			 "'all' - will keep all best files.\n"
+			 "'one' - will keep only one best file (the first by name).\n"
+			 "If --log, default is 'ask', otherwise 'all'.\n"
+			 "--log is recommended for this process.\n")
+	parser.add_argument("-f", "--folders", metavar="list", type=lambda value: value.split(","),
+		help="Define subfolders to place files, based on tags.\n")
+	parser.add_argument("-e", "--exclude", metavar="list", type=lambda value: value.split(","),
+		help="Exclude files with specified tags from -f process.\n")
+	parser.add_argument("-h", "--help", action="help", help="Show this help message.\n")
+	parser.add_argument("-l", "--log", action="store_true", help="Enable full logging instead of progressbars.\n")
+	parser.add_argument("-v", "--version", action="version", version=f"ROMs Library Manager v{version}",
+		help="Show the version.")
+	parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+	return parser
+
+def parse_options(argv) -> Options:
+	args = build_parser().parse_args(argv)
+
+	# Defaults of the optional-value flags: -s without a value, or -r without an action
+	sort = args.sort
+	remove_duplicates_action = DUPLICATES_ACTIONS.get(args.remove_duplicates, duplicates.Action.NOT_DEFINED)
 	if remove_duplicates_action == duplicates.Action.NOT_DEFINED:
-		remove_duplicates_action = duplicates.Action.ASK if is_log_enabled else duplicates.Action.KEEP_ALL
+		remove_duplicates_action = duplicates.Action.ASK if args.log else duplicates.Action.KEEP_ALL
 
-	# Check for conflicting options
-	if is_unpacking_enabled is True and is_packing_enabled is True:
-		print(f"{Fore.RED}Error: You cannot --extract and --pack at the same time.{Style.RESET_ALL}")
-		sys.exit(1)
+	return Options(
+		input_folder=args.input,
+		is_sort_enabled=sort is not None,
+		is_reverse_sort=isinstance(sort, str),
+		sort_options=sort if isinstance(sort, CategoryOption) else CategoryOption(0),
+		separation_options=CategoryOption.HOMEBREW | CategoryOption.PIRATES if args.unlicensed is None else args.unlicensed,
+		subfolders=args.folders,
+		exclude_tags=args.exclude,
+		is_unpacking_enabled=args.extract,
+		is_packing_enabled=args.pack is not None,
+		packing_format=args.pack or "7z",
+		is_remove_duplicates=args.remove_duplicates is not None,
+		remove_duplicates_action=remove_duplicates_action,
+		is_log_enabled=args.log,
+		is_debug_log=args.debug,
+	)
 
-	if (is_sort_enabled is False
-			and is_unpacking_enabled is False
-			and is_packing_enabled is False
-			and is_remove_duplicates is False):
+def target_folder_for(file_name, options) -> str:
+	if options.is_sort_enabled:
+		if options.is_reverse_sort:
+			return '.'
+		return get_new_folder(os.path.basename(file_name), options.separation_options, options.sort_options,
+							  options.subfolders, options.exclude_tags)
+	return os.path.dirname(file_name)
+
+def run(options):
+	print(f">> Welcome to ROMs Library Manager (v{version})")
+	if options.is_log_enabled and options.subfolders is not None:
+		print("Subfolders:", options.subfolders)
+	if options.is_log_enabled and options.exclude_tags is not None:
+		print("Exclude tags:", options.exclude_tags)
+
+	if not (options.is_sort_enabled or options.is_unpacking_enabled or options.is_packing_enabled
+			or options.is_remove_duplicates):
 		print(f"{Fore.YELLOW}Nothing to do...{Style.RESET_ALL}")
 		sys.exit()
 
-	if (is_unpacking_enabled or (is_packing_enabled and packing_format == "7z")) and find_seven_zip_binary() is None:
+	if (options.is_unpacking_enabled or (options.is_packing_enabled and options.packing_format == "7z")) \
+			and find_seven_zip_binary() is None:
 		print(f"{Fore.RED}Error: No 7-Zip binary (7zz/7z/7za) found on PATH.{Style.RESET_ALL}")
 		print("Install 7-Zip and make sure it's on your PATH, e.g. 'brew install sevenzip' on macOS/Linux.")
 		sys.exit(1)
 
-	if not os.path.exists(input_folder):
-		print(f"{Fore.RED}Error: The specified input folder '{input_folder}' does not exist.{Style.RESET_ALL}")
+	if not os.path.exists(options.input_folder):
+		print(f"{Fore.RED}Error: The specified input folder '{options.input_folder}' does not exist.{Style.RESET_ALL}")
 		sys.exit(1)
-	os.chdir(input_folder)
+	os.chdir(options.input_folder)
 	print(f"Current working directory set to: {os.getcwd()}")
 
-	if exclude_tags is not None and subfolders is None:
+	if options.exclude_tags is not None and options.subfolders is None:
 		print(f"{Fore.YELLOW}Warning: You cannot use --exclude without --subfolders. Option ignored.{Style.RESET_ALL}")
 
 	# Get files list
 	files_list = [f for f in glob.glob("**/*.*", recursive=True) if os.path.isfile(f)]
 
 	# If duplicates removal is enabled, do it first
-	if is_remove_duplicates:
+	if options.is_remove_duplicates:
 		files_was = len(files_list)
-		files_list = duplicates.clean_duplicates(files_list, remove_duplicates_action, is_log_enabled, is_debug_log)
+		files_list = duplicates.clean_duplicates(files_list, options.remove_duplicates_action,
+												 options.is_log_enabled, options.is_debug_log)
 		if files_was != len(files_list):
 			print(f"Total ROMs left after duplicates removal: {Fore.GREEN}{len(files_list)}{Style.RESET_ALL} "
 				  f"out of {Fore.RED}{files_was}{Style.RESET_ALL}")
 		else:
 			print("No duplicates found...")
-		
-	def get_target_folder() -> str:
-		if is_sort_enabled:
-			if is_reverse_sort:
-				return '.'
-			return get_new_folder(os.path.basename(file_name), separation_options, sort_options,
-										   subfolders, exclude_tags)
-		return os.path.dirname(file_name)
-		
+
 	# Process files
 	failures = []
-	if is_sort_enabled is True or is_unpacking_enabled is True or is_packing_enabled is True:
+	if options.is_sort_enabled or options.is_unpacking_enabled or options.is_packing_enabled:
 		# Single-threaded processing for just a move operation
-		if not is_unpacking_enabled and not is_packing_enabled:
+		if not options.is_unpacking_enabled and not options.is_packing_enabled:
 			print(">> Processing files...")
-			progress = files_list if is_log_enabled else tqdm(files_list, desc="Processing")
-			
+			progress = files_list if options.is_log_enabled else tqdm(files_list, desc="Processing")
+
 			for file_name in progress:
-				result_log = move_file(file_name, get_target_folder())
-				if is_log_enabled and result_log is not None:
+				result_log = move_file(file_name, target_folder_for(file_name, options))
+				if options.is_log_enabled and result_log is not None:
 					print(result_log)
 		else:
 			# Multithreaded processing for packing/unpacking
 			print(">> Preparing processing...")
-			tasks = []
-			for file_name in files_list:
-				target_folder = get_target_folder()
-				tasks.append((file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format))
-				
+			tasks = [(file_name, target_folder_for(file_name, options), options.is_unpacking_enabled,
+					  options.is_packing_enabled, options.packing_format) for file_name in files_list]
+
 			print(">> Processing files...")
-			if is_log_enabled:
+			if options.is_log_enabled:
 				with Pool(processes=os.cpu_count()) as pool:
 					for i, (f_name, result_log, error) in enumerate(pool.imap_unordered(process_file, tasks), start=1):
 						if error is not None:
@@ -430,8 +384,8 @@ def mane():
 								failures.append((f_name, error))
 							progress.update(1)
 
-		remove_meta_files(".", is_log_enabled)
-		remove_empty_subfolders(".", is_log_enabled)
+		remove_meta_files(".", options.is_log_enabled)
+		remove_empty_subfolders(".", options.is_log_enabled)
 
 	if failures:
 		print(f"{Fore.RED}>> {len(failures)} file(s) failed:{Style.RESET_ALL}")
@@ -441,6 +395,10 @@ def mane():
 
 	print(">> DONE!")
 	sys.exit()
+
+def mane():
+	colorama.init()
+	run(parse_options(sys.argv[1:]))
 
 if __name__ == "__main__":
 	freeze_support()
