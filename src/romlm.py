@@ -12,8 +12,8 @@ from colorama import Fore, Style
 from tqdm import tqdm
 from multiprocessing import Pool, freeze_support
 
-import tags
 import duplicates
+from tags import Release
 
 version = "1.1.0"
 
@@ -52,15 +52,16 @@ def try_add_subfolder(is_sort_subfolders, folder_name, filename) -> str:
 	return (folder_name + "/" + get_lettered_folder_name(filename)) if is_sort_subfolders else folder_name
 
 def get_new_folder(filename, separation_options, sorting_options, subfolders, excludes) -> str:
-	file_tags = tags.get_from_filename(filename)
+	release = Release.parse(filename)
+	file_tags = release.tags
 	excludes = {exclude.lower() for exclude in excludes} if excludes is not None else None
 	
 	# Check for 'homebrew' or 'aftermarket' tags
-	if separation_options & CategoryOption.HOMEBREW and tags.is_homebrew(file_tags):
+	if separation_options & CategoryOption.HOMEBREW and release.is_homebrew:
 		folder_name = try_add_subfolder(sorting_options & CategoryOption.HOMEBREW, "!Homebrew", filename)
 		
 	# Check for 'pirate' or 'unl' tags
-	elif separation_options & CategoryOption.PIRATES and tags.is_pirate(file_tags):
+	elif separation_options & CategoryOption.PIRATES and release.is_pirate:
 		folder_name = try_add_subfolder(sorting_options & CategoryOption.PIRATES, "!Pirates", filename)
 
 	# Check for any user-defined 'subfolders' value matches any tag.
@@ -125,7 +126,7 @@ def process_file(args) -> tuple[str, str, str]:
 	try:
 		if is_unpacking_enabled and file_name.endswith((".7z", ".zip")):
 			result_log = unpack_file(file_name, target_folder)
-		elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not tags.is_bios(file_name):
+		elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not Release.parse(file_name).is_bios:
 			result_log = pack_file(file_name, target_folder, packing_format)
 		else:
 			# Nothing to pack or unpack, but the file still has to follow the sorting
