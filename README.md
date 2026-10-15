@@ -55,7 +55,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   Behavior for the situations when script can't decide the best file itself, can be specified:
     - `ask` prompts you which file to keep, default with `-l`,
     - `all` keeps all equally good files, default without `-l`,
-    - `one` keeps exactly one of the best ROMs, taken randomly.
+    - `one` keeps exactly one of the best ROMs, the first one by name.
 
   I highly recommend to **use this feature with `-l` option** to see the results, and **make a backup of your ROMs before**!
   

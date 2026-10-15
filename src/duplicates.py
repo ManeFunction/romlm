@@ -152,7 +152,7 @@ def get_date_score(tags_list) -> int:
             return date_score
     return 0
 
-# Normal-file scoring: ( -region_coverage, min_region_index, non_region_tags, -video_format, -revision, -date )
+# Normal-file scoring: ( non_region_tags, -region_coverage, min_region_index, -video_format, -revision, -date )
 def score_normal_file(fpath, is_debug_log):
     tags_list = tags.get_from_filename(os.path.basename(fpath))
 

@@ -56,7 +56,7 @@ def print_help():
 	print("                             When program stuck with more than one 'best' ROMs:")
 	print("                             'ask' - will ask which file to keep.")
 	print("                             'all' - will keep all best files.")
-	print("                             'one' - will keep only one best file (at random).")
+	print("                             'one' - will keep only one best file (the first by name).")
 	print("                             If --log, default is 'ask', otherwise 'all'.")
 	print("                             --log is recommended for this process.\n")
 	print("-f, --folders [list]         Define subfolders to place files, based on tags.\n")
