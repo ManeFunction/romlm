@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "romlm"
-version = "1.1.0"
+dynamic = ["version"]
 description = "A ROM library management tool."
 authors = [
     { name = "Ilia Petrov-Komotskii", email = "ilia@inkedkettle.art" }
@@ -27,6 +27,9 @@ Repository = "https://github.com/ManeFunction/romlm"
 
 [project.scripts]
 romlm = "romlm:mane"
+
+[tool.setuptools.dynamic]
+version = { attr = "romlm.version" }
 
 [tool.setuptools]
 py-modules = ["romlm", "tags", "duplicates"]
