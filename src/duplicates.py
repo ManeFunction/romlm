@@ -1,5 +1,6 @@
 import os
 import re
+from dataclasses import dataclass, field
 from enum import Enum
 from tqdm import tqdm
 from colorama import Fore, Style
@@ -212,41 +213,145 @@ def print_files_list(files_list, color):
     for file_name in files_list:
         print(f" - {color}{os.path.basename(file_name)}{Style.RESET_ALL}")
 
+@dataclass
+class GroupPlan:
+    """What to do with the files of one game. Made without touching the disk."""
+    keep: list = field(default_factory=list)            # files that are kept for sure
+    remove: list = field(default_factory=list)          # worse files that are deleted
+    betas_dropped: list = field(default_factory=list)   # betas that are deleted because a release exists
+    releases: list = field(default_factory=list)        # ...and those releases
+    ties: list = field(default_factory=list)            # equally good files, the action decides which are kept
+    is_beta_group: bool = False
+    verdict: str = ""                                   # log label for the kept file, if it is only one
+
+def plan_group(paths, is_debug_log) -> GroupPlan:
+    """
+    Decide which files of one game to keep:
+      1) Partition into normal vs beta/proto.
+         - If normal exists => all beta/proto are removed.
+      2) Among normal => pick the best-scored normal file(s):
+         - Fewer non-region tags
+         - Region coverage (more is better)
+         - Better (lower) region priority index
+         - Better video format (NTSC > none > PAL)
+         - Higher revision or version
+         - Later date
+         Several equally good files are returned as ties.
+      3) If no normal => pick exactly one best-scored beta/proto (the first one on a tie):
+         - Later date
+         - Region coverage (more is better)
+         - Higher revision or version
+         - Fewer non-region tags
+    Never plans to remove all the files of a game.
+    """
+    if len(paths) == 1:
+        return GroupPlan(keep=list(paths), verdict="Single ROM")
+
+    normal_files = []
+    beta_files = []
+    for p in paths:
+        (beta_files if is_beta_file(p) else normal_files).append(p)
+
+    if not normal_files:
+        if len(beta_files) == 1:
+            return GroupPlan(keep=beta_files, verdict="Single Beta")
+        best = min(beta_files, key=lambda p: score_beta_file(p, is_debug_log))
+        return GroupPlan(keep=[best], remove=[p for p in beta_files if p != best],
+                         is_beta_group=True, verdict="Latest Beta")
+
+    plan = GroupPlan(betas_dropped=beta_files, releases=normal_files)
+    if len(normal_files) == 1:
+        plan.keep = normal_files
+        plan.verdict = "Single release ROM"
+        return plan
+
+    scores = {p: score_normal_file(p, is_debug_log) for p in normal_files}
+    best_score = min(scores.values())
+    best = [p for p in normal_files if scores[p] == best_score]
+    plan.remove = [p for p in normal_files if scores[p] != best_score]
+    plan.verdict = "Best ROM"
+    if len(best) == 1:
+        plan.keep = best
+    else:
+        plan.ties = best
+    return plan
+
+def ask_which_to_keep(candidates, number):
+    """Asks the user which file to keep. Returns None if all of them should be kept."""
+    print(f"{number}Can't decide which one is the best. Please select one to keep:")
+    for idx, file in enumerate(candidates, start=1):
+        print(f" {idx}. {Fore.YELLOW}{os.path.basename(file)}{Style.RESET_ALL}")
+
+    selected_index = -1
+    while selected_index < 0 or selected_index > len(candidates):
+        try:
+            selected_index = int(input("Enter the number of the file to keep (0 to keep all): "))
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    return candidates[selected_index - 1] if selected_index > 0 else None
+
 # Left only one file in the set
-def keep_one(files_set, selected, is_log_enabled, number) -> set:
+def keep_one(files_list, selected, is_log_enabled, number) -> list:
     if is_log_enabled:
         print(f"{number}Removing duplicate(s):")
-    for file_name in files_set:
+    for file_name in files_list:
         if file_name != selected:
             if is_log_enabled:
                 print(f"- {Fore.RED}{os.path.basename(file_name)}{Style.RESET_ALL}")
             os.remove(file_name)
     if is_log_enabled:
         print(f"| >> Keeping one: {Fore.GREEN}{os.path.basename(selected)}{Style.RESET_ALL}")
-    return {selected}
+    return [selected]
+
+def resolve_ties(ties, action, is_log_enabled, number) -> list:
+    """Removes the files that the action doesn't keep, and returns the kept ones."""
+    if action == Action.KEEP_ONE:
+        return keep_one(ties, min(ties), is_log_enabled, number)
+
+    if action == Action.ASK:
+        selected = ask_which_to_keep(ties, number)
+        if selected is not None:
+            return keep_one(ties, selected, is_log_enabled, number)
+
+    if is_log_enabled:
+        print(f"{number}Keeping all best ROMs:")
+        print_files_list(ties, Fore.GREEN)
+    return ties
+
+def apply_group(plan, action, is_log_enabled, number) -> list:
+    """Carries out the plan: removes files, asks and logs. Returns the files that are kept."""
+    if not plan.keep and not plan.ties:
+        raise ValueError("Refusing to remove all the files of a game")
+
+    if plan.betas_dropped:
+        if is_log_enabled:
+            print(f"{number}Removing all Betas: ")
+            print_files_list(plan.betas_dropped, Fore.RED)
+            print(f" | >> Has {len(plan.releases)} release(s):")
+            print_files_list(plan.releases, Fore.GREEN)
+        for f in plan.betas_dropped:
+            os.remove(f)
+
+    label = "Removing earlier Beta" if plan.is_beta_group else "Removing duplicate"
+    for f in plan.remove:
+        if is_log_enabled:
+            print(f"{number}{label}: {Fore.RED}{os.path.basename(f)}{Style.RESET_ALL}")
+        os.remove(f)
+
+    kept = list(plan.keep)
+    if plan.ties:
+        kept += resolve_ties(plan.ties, action, is_log_enabled, number)
+
+    if is_log_enabled and len(kept) == 1:
+        print(f"{number}{plan.verdict}: {Fore.GREEN}{os.path.basename(kept[0])}{Style.RESET_ALL}")
+    return kept
 
 def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
     """
-    For each distinct base name (game):
-      1) Partition into normal vs beta/proto.
-         - If normal exists => remove all beta/proto.
-      2) Among normal => pick exactly one best-scored normal file:
-         - Region coverage (more is better)
-         - Fewer non-region tags
-         - Better (lower) region priority index
-         - Higher revision
-      3) If no normal => pick exactly one best-scored beta/proto:
-         - Region coverage (more is better)
-         - No date is better than having a date
-         - Higher numeric suffix is better
-         - Fewer non-region tags
-      4) Remove the rest. Never remove all for a given game; if end up with none, keep them all.
+    Removes the worse files of every game (see plan_group), and returns the files that are left.
     [BIOS] files are never grouped nor removed.
     """
-
-    # Get a log iteration string formatted as "(N/M)"
-    def n(index) -> str:
-        return f"({index}/{len(groups_iter)}) "
 
     # Group files by base name
     file_list = list(file_list)
@@ -278,156 +383,9 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
     groups_iter = by_basename.items() if is_log_enabled \
         else tqdm(by_basename.items(), desc="Cleaning Duplicates", total=len(by_basename))
 
-    i = 0
-    for base, paths in groups_iter:
-        i += 1
-
-        # Only one file => trivially keep it
-        if len(paths) == 1:
-            files_to_keep.add(paths[0])
-            if is_log_enabled:
-                print(f"{n(i)}Single ROM: {Fore.GREEN}{os.path.basename(paths[0])}{Style.RESET_ALL}")
-            continue
-
-        # Partition into normal vs. beta/proto
-        normal_files = []
-        beta_proto_files = []
-        for p in paths:
-            if is_beta_file(p):
-                beta_proto_files.append(p)
-            else:
-                normal_files.append(p)
-
-        if normal_files:
-            # Remove all Beta/Proto
-            chosen_set = normal_files
-            if is_log_enabled and beta_proto_files:
-                print(f"{n(i)}Removing all Betas: ")
-                print_files_list(beta_proto_files, Fore.RED)
-                print(f" | >> Has {len(normal_files)} release(s):")
-                print_files_list(normal_files, Fore.GREEN)
-            for bp in beta_proto_files:
-                os.remove(bp)
-        else:
-            # No normal => only Beta/Proto
-            # Pick exactly one best-scored
-            if len(beta_proto_files) == 1:
-                files_to_keep.add(beta_proto_files[0])
-                if is_log_enabled:
-                    print(f"{n(i)}Single Beta: {Fore.GREEN}{os.path.basename(beta_proto_files[0])}{Style.RESET_ALL}")
-                continue
-
-            best_bp = None
-            best_score = None
-            for bp in beta_proto_files:
-                sc = score_beta_file(bp, is_debug_log)
-                if (best_score is None) or (sc < best_score):
-                    best_score = sc
-                    best_bp = bp
-
-            keep_set = {best_bp}
-            for bp in beta_proto_files:
-                if bp != best_bp:
-                    if is_log_enabled:
-                        print(f"{n(i)}Removing earlier Beta: {Fore.RED}{os.path.basename(bp)}{Style.RESET_ALL}")
-                    os.remove(bp)
-
-            # safety check: never remove all
-            if not keep_set:
-                # fallback => keep them all
-                for p in beta_proto_files:
-                    files_to_keep.add(p)
-                if is_log_enabled:
-                    print(f"{n(i)}No latest Beta, keeping all:")
-                    print_files_list(beta_proto_files, Fore.GREEN)
-            else:
-                for f in keep_set:
-                    files_to_keep.add(f)
-                if is_log_enabled:
-                    print(f"{n(i)}Latest Beta: {Fore.GREEN}{os.path.basename(best_bp)}{Style.RESET_ALL}")
-            continue
-
-        # If chosen_set is empty for some reason, fallback => keep them all
-        if not chosen_set:
-            for p in paths:
-                files_to_keep.add(p)
-            if is_log_enabled:
-                print(f"{n(i)}No release ROMs, keeping all these:")
-                print_files_list(paths, Fore.GREEN)
-            continue
-
-        # Among the chosen normal set, pick best scored files
-        if len(chosen_set) == 1:
-            files_to_keep.add(chosen_set[0])
-            if is_log_enabled:
-                print(f"{n(i)}Single release ROM: {Fore.GREEN}{os.path.basename(chosen_set[0])}{Style.RESET_ALL}")
-            continue
-
-        best_normal = set()
-        best_score = None
-        for nf in chosen_set:
-            sc = score_normal_file(nf, is_debug_log)
-            if (best_score is None) or (sc < best_score):
-                best_score = sc
-                best_normal = {nf}
-            elif sc == best_score:
-                best_normal.add(nf)
-
-        # remove all others
-        keep_set = best_normal
-        for nf in chosen_set:
-            if nf not in best_normal:
-                if is_log_enabled:
-                    print(f"{n(i)}Removing duplicate: {Fore.RED}{os.path.basename(nf)}{Style.RESET_ALL}")
-                os.remove(nf)
-
-        # safety check
-        if not keep_set:
-            # fallback => keep them all
-            for f in chosen_set:
-                files_to_keep.add(f)
-            if is_log_enabled:
-                print(f"{n(i)}No best ROM, keeping all:")
-                print_files_list(chosen_set, Fore.GREEN)
-        else:
-            # check what we need to do with the rest of the best
-            if len(keep_set) > 1:
-                if action == Action.KEEP_ALL:
-                    if is_log_enabled:
-                        print(f"{n(i)}Keeping all best ROMs:")
-                        print_files_list(keep_set, Fore.GREEN)
-
-                elif action == Action.KEEP_ONE:
-                    best_kept = min(keep_set, key=lambda x: x)
-                    keep_set = keep_one(keep_set, best_kept, is_log_enabled, n(i))
-
-                elif action == Action.ASK:
-                    print(f"{n(i)}Can't decide which one is the best. Please select one to keep:")
-                    keep_list = list(keep_set)
-                    for idx, file in enumerate(keep_list, start=1):
-                        print(f" {idx}. {Fore.YELLOW}{os.path.basename(file)}{Style.RESET_ALL}")
-
-                    selected_index = -1
-                    while selected_index < 0 or selected_index > len(keep_list):
-                        try:
-                            selected_index = int(input("Enter the number of the file to keep (0 to keep all): "))
-                        except ValueError:
-                            print("Invalid input. Please enter a number.")
-
-                    if selected_index == 0:
-                        if is_log_enabled:
-                            print(f"{n(i)}Keeping all best ROMs:")
-                            print_files_list(keep_set, Fore.GREEN)
-                    else:
-                        user_selected = keep_list[selected_index - 1]
-                        keep_set = keep_one(keep_set, user_selected, is_log_enabled, n(i))
-
-            if len(keep_set) == 1:
-                if is_log_enabled:
-                    print(f"{n(i)}Best ROM: {Fore.GREEN}{os.path.basename(next(iter(keep_set)))}{Style.RESET_ALL}")
-
-            for f in keep_set:
-                files_to_keep.add(f)
+    for i, (base, paths) in enumerate(groups_iter, start=1):
+        plan = plan_group(paths, is_debug_log)
+        files_to_keep.update(apply_group(plan, action, is_log_enabled, f"({i}/{len(by_basename)}) "))
 
     # Return only files we decided to keep
     return [f for f in file_list if f in files_to_keep]
