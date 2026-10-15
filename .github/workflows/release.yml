@@ -27,6 +27,14 @@ jobs:
           /tmp/romlm-venv/bin/pip install dist/*.whl
           /tmp/romlm-venv/bin/romlm -v
 
+      - name: Check the tag matches the package version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          WHEEL_VERSION=$(/tmp/romlm-venv/bin/pip show romlm | sed -n 's/^Version: //p')
+          CLI_VERSION=$(/tmp/romlm-venv/bin/romlm -v | sed 's/.* v//')
+          echo "tag=$TAG_VERSION wheel=$WHEEL_VERSION cli=$CLI_VERSION"
+          test "$TAG_VERSION" = "$WHEEL_VERSION" && test "$TAG_VERSION" = "$CLI_VERSION"
+
       - uses: actions/upload-artifact@v7
         with:
           name: dist
