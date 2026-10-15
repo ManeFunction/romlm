@@ -235,6 +235,7 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
          - Higher numeric suffix is better
          - Fewer non-region tags
       4) Remove the rest. Never remove all for a given game; if end up with none, keep them all.
+    [BIOS] files are never grouped nor removed.
     """
 
     # Get a log iteration string formatted as "(N/M)"
@@ -245,7 +246,12 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
     file_list = list(file_list)
     by_basename = {}
 
+    # BIOS files are named "[BIOS] System (Region)", so they have no game name to group by
+    bios_files = {f for f in file_list if tags.is_bios(f)}
+
     for f in file_list:
+        if f in bios_files:
+            continue
         fname = os.path.basename(f)
         base = tags.get_base_name(fname)
         disc = get_disc_number(tags.get_from_filename(fname))
@@ -260,7 +266,7 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log):
         len(by_basename),
     )
 
-    files_to_keep = set()
+    files_to_keep = set(bios_files)
 
     # MAIN LOOP of removing duplicates
     groups_iter = by_basename.items() if is_log_enabled \

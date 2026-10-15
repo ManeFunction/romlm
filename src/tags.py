@@ -7,6 +7,9 @@ def is_homebrew(file_tags) -> bool:
 def is_pirate(file_tags) -> bool:
     return "pirate" in file_tags or "unl" in file_tags
 
+def is_bios(filename: str) -> bool:
+    return os.path.basename(filename).lower().startswith("[bios]")
+
 def get_from_filename(filename: str) -> list[str]:
     name_no_ext = os.path.splitext(filename)[0]
     groups = re.findall(r'[(\[](.*?)[)\]]', name_no_ext)
