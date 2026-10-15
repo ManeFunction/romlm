@@ -131,7 +131,7 @@ def try_get_version_score(tags_list) -> tuple[int, bool]:
             rev_score = ord(rev) - ord('a') + 1
             return rev_score, True
         # Catch version numbers
-        m = re.match(r"^(?:(rev|beta|alpha|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})?$", t)
+        m = re.match(r"^(?:(rev|beta|alpha|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})$", t)
         if m:
             version_str = m.group(2)
             parts = version_str.split(".")
