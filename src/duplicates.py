@@ -16,6 +16,9 @@ top_region_priority = "world"
 region_priority = ["usa", "europe"]
 asian_regions = ["japan", "asia", "china", "korea"]
 
+# What a Homebrew ROM without any version tag is scored as: the initial release, 1.0.0.0
+IMPLICIT_HOMEBREW_VERSION_SCORE = 1000000000
+
 # Version number tag, like "1.1", "v1.1" or "v2.0.1.3"
 VERSION_NUMBER = r"v?\d+(?:\.\d+){0,3}"
 
@@ -167,7 +170,7 @@ def score_normal_file(fpath, is_debug_log):
     # ...for retro ROMs, it's more likely "Rev 0" (initial release)
     # also compensate missed initial revision for Homebrew 
     if (tags.is_homebrew(tags_list) or tags.is_pirate(tags_list)) and not version_found:
-        version_score = 100000000000
+        version_score = IMPLICIT_HOMEBREW_VERSION_SCORE
         non_region += 1
 
     if is_debug_log:
