@@ -16,6 +16,9 @@ top_region_priority = "world"
 region_priority = ["usa", "europe"]
 asian_regions = ["japan", "asia", "china", "korea"]
 
+# Version number tag, like "1.1", "v1.1" or "v2.0.1.3"
+VERSION_NUMBER = r"v?\d+(?:\.\d+){0,3}"
+
 # Is ROM a part of multi-disc set?
 def get_disc_number(tags_list) -> int:
     """
@@ -95,7 +98,7 @@ def count_unknown_tags(tags_list):
         if t in asian_regions:
             continue
         # Revisions and versions tags
-        if t.startswith("rev ") or re.match(r"^\d+(?:\.\d+){0,3}$", t):
+        if t.startswith("rev ") or re.match(rf"^{VERSION_NUMBER}$", t):
             continue
         # Beta and other in-development tags
         if t.startswith("beta") or t.startswith("alpha") or t.startswith("proto") or t.startswith("sample"):
