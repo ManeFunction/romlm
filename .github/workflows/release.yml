@@ -6,7 +6,11 @@ on:
       - "v*"
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -41,6 +45,7 @@ jobs:
           path: dist/
 
   windows-exe:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
