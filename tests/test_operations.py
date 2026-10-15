@@ -105,6 +105,25 @@ class ExecuteTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.path("G", "Game (USA).nes")))
 
 
+class DryRunTest(unittest.TestCase):
+    def test_nothing_is_touched_and_every_operation_is_described(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = os.path.join(root, "Game (USA).nes")
+            open(source, "w").close()
+            ops = [Operation(Kind.MOVE, source, os.path.join(root, "G")),
+                   Operation(Kind.PACK, source, os.path.join(root, "G"), "zip"),
+                   Operation(Kind.UNPACK, os.path.join(root, "A.zip"), "")]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                failures = operations.run_operations(ops, True, is_dry_run=True)
+            self.assertEqual(failures, [])
+            self.assertEqual(os.listdir(root), ["Game (USA).nes"])
+            lines = output.getvalue().splitlines()
+            self.assertEqual(len(lines), 3)
+            for line, word in zip(lines, ("move", "pack", "unpack")):
+                self.assertIn(f"Would {word}", line)
+
+
 @unittest.skipUnless(archives.find_seven_zip_binary(), "7-Zip is not installed")
 class SevenZipTest(unittest.TestCase):
     def test_pack_and_unpack_7z(self):

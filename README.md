@@ -89,6 +89,13 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/remove-log.png)
 
 
+- **Dry Run (`-n, --dry-run`)**  
+  Shows what would be done, without changing anything: which duplicates would be removed, and which files would be
+  moved, packed or unpacked. Works with every other option, and implies `--log`. Run the same command without
+  `-n` when the list looks right. Duplicates that can't be decided are all kept in this mode, instead of asking
+  (unless you set `-r ask` explicitly).
+
+
 - **Other Utilities**  
   - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`).
   - Removes empty subdirectories after sorting.

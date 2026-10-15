@@ -83,6 +83,13 @@ class ParseOptionsTest(unittest.TestCase):
         self.assertEqual(self.parse("-r", "-l").remove_duplicates_action, Action.ASK)
         self.assertEqual(self.parse("-r", "one", "-l").remove_duplicates_action, Action.KEEP_ONE)
 
+    def test_dry_run_implies_log_but_not_asking(self):
+        options = self.parse("-r", "-n")
+        self.assertTrue(options.is_dry_run)
+        self.assertTrue(options.is_log_enabled)
+        self.assertEqual(options.remove_duplicates_action, Action.KEEP_ALL)
+        self.assertFalse(self.parse("-r").is_dry_run)
+
     def test_lists(self):
         options = self.parse("-s", "f", "-f", "Japan,Europe", "-e", "USA")
         self.assertEqual(options.subfolders, ["Japan", "Europe"])
