@@ -237,16 +237,17 @@ def mane():
 					sys.exit(1)
 				skip_next = True
 		elif arg in ("-u", "--unlicensed"):
+			# Bare "-u" disables the separation, same as "-u none"
+			separation_options = CategoryOption(0)
 			if is_next_optional_parameter(args, i):
 				keep_params = args[i+1]
-				if keep_params == "none":
-					separation_options = CategoryOption(0)
-				elif 'a' in keep_params:
-					separation_options = CategoryOption.HOMEBREW | CategoryOption.PIRATES
-				else:
-					if 'h' in keep_params:
+				if keep_params != "none":
+					if set(keep_params) - set("hpa"):
+						print(f"{Fore.RED}Error: Unknown option '{keep_params}'! --unlicensed only supports 'h', 'p', 'a' or 'none'.{Style.RESET_ALL}")
+						sys.exit(1)
+					if 'a' in keep_params or 'h' in keep_params:
 						separation_options |= CategoryOption.HOMEBREW
-					if 'p' in keep_params:
+					if 'a' in keep_params or 'p' in keep_params:
 						separation_options |= CategoryOption.PIRATES
 				skip_next = True
 		elif arg in ("-s", "--sort"):
