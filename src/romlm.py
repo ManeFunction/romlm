@@ -107,6 +107,7 @@ class Options:
 	remove_duplicates_action: duplicates.Action
 	is_log_enabled: bool
 	is_debug_log: bool
+	is_dry_run: bool
 
 def parse_category_flags(value, allowed) -> CategoryOption:
 	"""Reads option letters like 'hp', where 'a' stands for all the allowed ones."""
@@ -175,6 +176,8 @@ def build_parser() -> argparse.ArgumentParser:
 		help="Define subfolders to place files, based on tags.\n")
 	parser.add_argument("-e", "--exclude", metavar="list", type=lambda value: value.split(","),
 		help="Exclude files with specified tags from -f process.\n")
+	parser.add_argument("-n", "--dry-run", action="store_true",
+		help="Show what would be done, without changing anything.\nImplies --log.\n")
 	parser.add_argument("-h", "--help", action="help", help="Show this help message.\n")
 	parser.add_argument("-l", "--log", action="store_true", help="Enable full logging instead of progressbars.\n")
 	parser.add_argument("-v", "--version", action="version", version=f"ROMs Library Manager v{version}",
@@ -204,8 +207,9 @@ def parse_options(argv) -> Options:
 		packing_format=args.pack or "7z",
 		is_remove_duplicates=args.remove_duplicates is not None,
 		remove_duplicates_action=remove_duplicates_action,
-		is_log_enabled=args.log,
+		is_log_enabled=args.log or args.dry_run,
 		is_debug_log=args.debug,
+		is_dry_run=args.dry_run,
 	)
 
 def target_folder_for(file_name, options) -> str:
@@ -216,8 +220,19 @@ def target_folder_for(file_name, options) -> str:
 							  options.subfolders, options.exclude_tags)
 	return os.path.dirname(file_name)
 
+def summarize_dry_run(duplicates_removed, planned) -> str:
+	"""A line about the amount of work a dry run found."""
+	counts = [(duplicates_removed, "duplicate(s) to remove")]
+	for kind, label in ((operations.Kind.MOVE, "to move"), (operations.Kind.PACK, "to pack"),
+						(operations.Kind.UNPACK, "to unpack")):
+		counts.append((sum(1 for op in planned if op.kind == kind), f"file(s) {label}"))
+	found = [f"{count} {label}" for count, label in counts if count > 0]
+	return "Summary: " + ", ".join(found) + "." if found else "Summary: nothing to do."
+
 def run(options):
 	print(f">> Welcome to ROMs Library Manager (v{version})")
+	if options.is_dry_run:
+		print(f"{Fore.YELLOW}>> DRY RUN: nothing will be changed.{Style.RESET_ALL}")
 	if options.is_log_enabled and options.subfolders is not None:
 		print("Subfolders:", options.subfolders)
 	if options.is_log_enabled and options.exclude_tags is not None:
@@ -247,10 +262,13 @@ def run(options):
 	files_list = [f for f in glob.glob("**/*.*", recursive=True) if os.path.isfile(f)]
 
 	# If duplicates removal is enabled, do it first
+	duplicates_removed = 0
 	if options.is_remove_duplicates:
 		files_was = len(files_list)
 		files_list = duplicates.clean_duplicates(files_list, options.remove_duplicates_action,
-												 options.is_log_enabled, options.is_debug_log)
+												 options.is_log_enabled, options.is_debug_log,
+												 remove=(lambda path: None) if options.is_dry_run else os.remove)
+		duplicates_removed = files_was - len(files_list)
 		if files_was != len(files_list):
 			print(f"Total ROMs left after duplicates removal: {Fore.GREEN}{len(files_list)}{Style.RESET_ALL} "
 				  f"out of {Fore.RED}{files_was}{Style.RESET_ALL}")
@@ -259,6 +277,7 @@ def run(options):
 
 	# Process files
 	failures = []
+	planned = []
 	if options.is_sort_enabled or options.is_unpacking_enabled or options.is_packing_enabled:
 		if options.is_unpacking_enabled or options.is_packing_enabled:
 			print(">> Preparing processing...")
@@ -267,16 +286,22 @@ def run(options):
 											 options.packing_format)
 
 		print(">> Processing files...")
-		failures = operations.run_operations(planned, options.is_log_enabled)
+		failures = operations.run_operations(planned, options.is_log_enabled, options.is_dry_run)
 
-		remove_meta_files(".", options.is_log_enabled)
-		remove_empty_subfolders(".", options.is_log_enabled)
+		if not options.is_dry_run:
+			remove_meta_files(".", options.is_log_enabled)
+			remove_empty_subfolders(".", options.is_log_enabled)
 
 	if failures:
 		print(f"{Fore.RED}>> {len(failures)} file(s) failed:{Style.RESET_ALL}")
 		for f_name, error in failures:
 			print(f" - {Fore.RED}{f_name}{Style.RESET_ALL}: {error}")
 		sys.exit(1)
+
+	if options.is_dry_run:
+		print(f"{Fore.YELLOW}>> DRY RUN is over, nothing was changed.{Style.RESET_ALL}")
+		print(summarize_dry_run(duplicates_removed, planned))
+		sys.exit()
 
 	print(">> DONE!")
 	sys.exit()

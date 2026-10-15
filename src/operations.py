@@ -60,8 +60,26 @@ def execute(operation) -> tuple[str, str, str]:
         return operation.source, None, archives.describe_error(error)
     return operation.source, result_log, None
 
-def run_operations(operations, is_log_enabled) -> list:
-    """Carries out the operations and returns the failed ones as (file name, error message) pairs."""
+def describe(operation) -> str:
+    """What the operation does, for the dry run."""
+    target = operation.target_folder or "."
+    if operation.kind == Kind.UNPACK:
+        return f" >> Would unpack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {Fore.BLUE}{target}{Style.RESET_ALL}"
+    if operation.kind == Kind.PACK:
+        return (f" >> Would pack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {operation.packing_format} "
+                f"in {Fore.BLUE}{target}{Style.RESET_ALL}")
+    return f" >> Would move: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {Fore.BLUE}{target}{Style.RESET_ALL}"
+
+def run_operations(operations, is_log_enabled, is_dry_run=False) -> list:
+    """
+    Carries out the operations and returns the failed ones as (file name, error message) pairs.
+    A dry run only prints what would be done.
+    """
+    if is_dry_run:
+        for operation in operations:
+            print(describe(operation))
+        return []
+
     failures = []
 
     # Archives take time, so they are processed in parallel. Moves are quick and go one by one.
