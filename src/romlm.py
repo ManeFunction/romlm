@@ -147,18 +147,28 @@ def move_file(file_name, target_folder):
 	shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
 	return f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}"
 
-def process_file(args) -> tuple[str, str]:
-	"""Processes a single file for packing or unpacking."""
+def describe_error(error) -> str:
+	"""A one-line reason of why a file could not be processed."""
+	if isinstance(error, subprocess.CalledProcessError):
+		output = error.stderr or error.stdout or b""
+		details = output.decode(errors="replace").strip().splitlines()
+		return f"7-Zip failed with code {error.returncode}" + (f": {details[-1]}" if details else "")
+	return f"{type(error).__name__}: {error}"
+
+def process_file(args) -> tuple[str, str, str]:
+	"""Processes a single file for packing or unpacking. Returns the file name, a log line and an error message."""
 	file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format = args
-	result_log = None
-	if is_unpacking_enabled and file_name.endswith((".7z", ".zip")):
-		result_log = unpack_file(file_name, target_folder)
-	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not tags.is_bios(file_name):
-		result_log = pack_file(file_name, target_folder, packing_format)
-	else:
-		# Nothing to pack or unpack, but the file still has to follow the sorting
-		result_log = move_file(file_name, target_folder)
-	return file_name, result_log
+	try:
+		if is_unpacking_enabled and file_name.endswith((".7z", ".zip")):
+			result_log = unpack_file(file_name, target_folder)
+		elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not tags.is_bios(file_name):
+			result_log = pack_file(file_name, target_folder, packing_format)
+		else:
+			# Nothing to pack or unpack, but the file still has to follow the sorting
+			result_log = move_file(file_name, target_folder)
+	except Exception as error:
+		return file_name, None, describe_error(error)
+	return file_name, result_log, None
 
 def unpack_file(file_name, target_folder) -> str:
 	"""Handles unpacking of a single file."""
@@ -177,21 +187,28 @@ def unpack_file(file_name, target_folder) -> str:
 def pack_file(file_name, target_folder, packing_format) -> str:
 	"""Handles packing of a single file."""
 	archive_path = os.path.join(target_folder, os.path.basename(file_name))
-	if packing_format == "7z":
-		seven_zip_bin = find_seven_zip_binary()
-		# Run with cwd set to the source file's folder, passing only its basename,
-		# so the archive stores just that name (matching the old arcname behavior)
-		# instead of the full source path.
-		subprocess.run(
-			[seven_zip_bin, "a", os.path.abspath(str(archive_path) + ".7z"), os.path.basename(file_name)],
-			cwd=os.path.dirname(os.path.abspath(file_name)),
-			check=True, capture_output=True,
-		)
-	elif packing_format == "zip":
-		with zipfile.ZipFile(str(archive_path + ".zip"), 'w', zipfile.ZIP_DEFLATED) as archive:
-			archive.write(file_name, arcname=os.path.basename(file_name))
+	archive_file = f"{archive_path}.{packing_format}"
+	try:
+		if packing_format == "7z":
+			seven_zip_bin = find_seven_zip_binary()
+			# Run with cwd set to the source file's folder, passing only its basename,
+			# so the archive stores just that name (matching the old arcname behavior)
+			# instead of the full source path.
+			subprocess.run(
+				[seven_zip_bin, "a", os.path.abspath(archive_file), os.path.basename(file_name)],
+				cwd=os.path.dirname(os.path.abspath(file_name)),
+				check=True, capture_output=True,
+			)
+		elif packing_format == "zip":
+			with zipfile.ZipFile(archive_file, 'w', zipfile.ZIP_DEFLATED) as archive:
+				archive.write(file_name, arcname=os.path.basename(file_name))
+	except Exception:
+		# Don't leave a half-written archive next to the source file
+		if os.path.exists(archive_file):
+			os.remove(archive_file)
+		raise
 	os.remove(file_name)
-	return f" >> Packed to: {Fore.BLUE}{archive_path}.{packing_format}{Style.RESET_ALL}"
+	return f" >> Packed to: {Fore.BLUE}{archive_file}{Style.RESET_ALL}"
 
 def is_next_optional_parameter(args, i) -> bool:
 	return i+1 < len(args) and not args[i+1].startswith("-")
@@ -375,6 +392,7 @@ def mane():
 		return os.path.dirname(file_name)
 		
 	# Process files
+	failures = []
 	if is_sort_enabled is True or is_unpacking_enabled is True or is_packing_enabled is True:
 		# Single-threaded processing for just a move operation
 		if not is_unpacking_enabled and not is_packing_enabled:
@@ -394,24 +412,32 @@ def mane():
 				tasks.append((file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format))
 				
 			print(">> Processing files...")
-			i = 0
 			if is_log_enabled:
 				with Pool(processes=os.cpu_count()) as pool:
-					for task in pool.imap_unordered(process_file, tasks):
-						i += 1
-						f_name, result_log = task
-						print(f"({i}/{len(tasks)}) Processed: {Fore.GREEN}{f_name}{Style.RESET_ALL}")
-						if result_log is not None:
-							print(result_log)
+					for i, (f_name, result_log, error) in enumerate(pool.imap_unordered(process_file, tasks), start=1):
+						if error is not None:
+							failures.append((f_name, error))
+							print(f"({i}/{len(tasks)}) Failed: {Fore.RED}{f_name}{Style.RESET_ALL} ({error})")
+						else:
+							print(f"({i}/{len(tasks)}) Processed: {Fore.GREEN}{f_name}{Style.RESET_ALL}")
+							if result_log is not None:
+								print(result_log)
 			else:
 				with Pool(processes=os.cpu_count()) as pool:
 					with tqdm(total=len(tasks), desc="Processing") as progress:
-						for _ in pool.imap_unordered(process_file, tasks):
+						for f_name, _, error in pool.imap_unordered(process_file, tasks):
+							if error is not None:
+								failures.append((f_name, error))
 							progress.update(1)
-					
-	
+
 		remove_meta_files(".", is_log_enabled)
 		remove_empty_subfolders(".", is_log_enabled)
+
+	if failures:
+		print(f"{Fore.RED}>> {len(failures)} file(s) failed:{Style.RESET_ALL}")
+		for f_name, error in failures:
+			print(f" - {Fore.RED}{f_name}{Style.RESET_ALL}: {error}")
+		sys.exit(1)
 
 	print(">> DONE!")
 	sys.exit()
