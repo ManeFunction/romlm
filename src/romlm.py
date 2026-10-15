@@ -140,6 +140,13 @@ def remove_empty_subfolders(path, is_log_enabled):
 						print(f"Removed empty folder: {Fore.RED}{parent_dir}{Style.RESET_ALL}")
 					parent_dir = os.path.dirname(parent_dir)
 
+def move_file(file_name, target_folder):
+	"""Moves a file into the target folder. Returns a log line, or None if it is already there."""
+	if os.path.normpath(os.path.dirname(file_name) or ".") == os.path.normpath(target_folder):
+		return None
+	shutil.move(file_name, os.path.join(target_folder, os.path.basename(file_name)))
+	return f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}"
+
 def process_file(args) -> tuple[str, str]:
 	"""Processes a single file for packing or unpacking."""
 	file_name, target_folder, is_unpacking_enabled, is_packing_enabled, packing_format = args
@@ -148,6 +155,9 @@ def process_file(args) -> tuple[str, str]:
 		result_log = unpack_file(file_name, target_folder)
 	elif is_packing_enabled and not file_name.endswith((".7z", ".zip")) and not tags.is_bios(file_name):
 		result_log = pack_file(file_name, target_folder, packing_format)
+	else:
+		# Nothing to pack or unpack, but the file still has to follow the sorting
+		result_log = move_file(file_name, target_folder)
 	return file_name, result_log
 
 def unpack_file(file_name, target_folder) -> str:
@@ -372,10 +382,9 @@ def mane():
 			progress = files_list if is_log_enabled else tqdm(files_list, desc="Processing")
 			
 			for file_name in progress:
-				target_folder = get_target_folder()
-				shutil.move(file_name, os.path.join(target_folder, os.path.basename(str(file_name))))
-				if is_log_enabled:
-					print(f" >> Moved to: {Fore.BLUE}{target_folder}{Style.RESET_ALL}")
+				result_log = move_file(file_name, get_target_folder())
+				if is_log_enabled and result_log is not None:
+					print(result_log)
 		else:
 			# Multithreaded processing for packing/unpacking
 			print(">> Preparing processing...")
