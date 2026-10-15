@@ -343,7 +343,7 @@ def mane():
 		print(f"{Fore.YELLOW}Warning: You cannot use --exclude without --subfolders. Option ignored.{Style.RESET_ALL}")
 
 	# Get files list
-	files_list = glob.glob("**/*.*", recursive=True)
+	files_list = [f for f in glob.glob("**/*.*", recursive=True) if os.path.isfile(f)]
 
 	# If duplicates removal is enabled, do it first
 	if is_remove_duplicates:
