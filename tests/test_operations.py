@@ -38,6 +38,14 @@ class PlanOperationsTest(unittest.TestCase):
         operations_list = plan(["A.zip", "B.7z", "C.nes"], lambda f: "out", unpack=True)
         self.assertEqual([op.kind for op in operations_list], [Kind.UNPACK, Kind.UNPACK, Kind.MOVE])
 
+    def test_archive_extensions_are_case_insensitive(self):
+        for name in ("A.ZIP", "B.7Z", "C.Zip"):
+            self.assertTrue(archives.is_archive(name), name)
+        self.assertEqual([op.kind for op in plan(["A.ZIP", "B.7Z"], lambda f: "out", unpack=True)],
+                         [Kind.UNPACK, Kind.UNPACK])
+        self.assertEqual([op.kind for op in plan(["A.ZIP", "B.7Z"], lambda f: "out", pack=True)],
+                         [Kind.MOVE, Kind.MOVE])
+
     def test_files_are_packed_but_archives_and_bios_are_not(self):
         operations_list = plan(["A.nes", "B.zip", "!!BIOS/[BIOS] Sega CD (USA).bin"], lambda f: "out", pack=True)
         self.assertEqual(operations_list, [
@@ -86,6 +94,14 @@ class ExecuteTest(unittest.TestCase):
         self.assertIsNone(error)
         self.assertFalse(os.path.exists(archive))
         self.assertEqual(read(self.path("back", "Game (USA).nes")), "rom")
+
+    def test_unpacks_an_archive_with_an_upper_case_extension(self):
+        archive = self.path("Up (USA).ZIP")
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("Up (USA).nes", "rom")
+        _, _, error = operations.execute(Operation(Kind.UNPACK, archive, self.path("out")))
+        self.assertIsNone(error)
+        self.assertEqual(read(self.path("out", "Up (USA).nes")), "rom")
 
     def test_bad_archive_is_reported_and_kept(self):
         bad = self.touch("Bad (USA).zip", content="not a zip")

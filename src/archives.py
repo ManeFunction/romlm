@@ -21,16 +21,16 @@ def find_seven_zip_binary():
     return None
 
 def is_archive(file_name) -> bool:
-    return file_name.endswith(ARCHIVE_EXTENSIONS)
+    return file_name.lower().endswith(ARCHIVE_EXTENSIONS)
 
 def unpack(file_name, target_folder):
     """Extracts the archive into the folder, and removes the archive."""
-    if file_name.endswith(".7z"):
+    if file_name.lower().endswith(".7z"):
         subprocess.run(
             [find_seven_zip_binary(), "x", os.path.abspath(file_name), f"-o{os.path.abspath(target_folder)}", "-y"],
             check=True, capture_output=True,
         )
-    elif file_name.endswith(".zip"):
+    elif file_name.lower().endswith(".zip"):
         with zipfile.ZipFile(file_name, 'r') as archive:
             archive.extractall(target_folder)
     os.remove(file_name)
