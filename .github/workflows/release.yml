@@ -64,7 +64,7 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: python -m pip install --upgrade pip tqdm colorama nuitka
@@ -75,7 +75,11 @@ jobs:
           --output-filename=romlm.exe --output-dir=dist src/romlm.py
 
       - name: Smoke test the exe
-        run: dist/romlm.exe -v
+        shell: bash
+        run: |
+          out=$(dist/romlm.exe -v)
+          echo "$out"
+          test "$out" = "ROMs Library Manager v${GITHUB_REF_NAME#v}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
