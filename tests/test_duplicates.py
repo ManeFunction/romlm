@@ -20,6 +20,24 @@ def plan(*names):
     return (names_of(result.keep), names_of(result.remove) + names_of(result.betas_dropped), names_of(result.ties))
 
 
+class ScoringHelpersTest(unittest.TestCase):
+    def test_region_coverage_and_index(self):
+        # The examples of the docstring
+        region = duplicates.get_region_coverage_and_min_index
+        self.assertEqual(region(["usa", "europe"]), (2, 0))
+        self.assertEqual(region(["europe"]), (1, 1))
+        self.assertEqual(region(["world"]), (2, 0))
+        self.assertEqual(region(["japan"]), (0, 2))
+
+    def test_letter_revisions_and_numeric_versions(self):
+        version = duplicates.try_get_version_score
+        self.assertEqual(version(["rev a"]), (1, True))
+        self.assertEqual(version(["beta b"]), (2, True))
+        self.assertEqual(version(["rev 1"]), (1000000000, True))
+        self.assertEqual(version(["v1.2.3"]), (1002003000, True))
+        self.assertEqual(version(["usa"]), (0, False))
+
+
 class PlanGroupTest(unittest.TestCase):
     def test_single_file_is_kept(self):
         self.assertEqual(plan("Game (USA).nes"), (["Game (USA).nes"], [], []))

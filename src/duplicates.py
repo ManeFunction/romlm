@@ -31,7 +31,8 @@ def get_region_coverage_and_min_index(tags_list):
     Returns (coverage, min_index) where:
       coverage = number of recognized region tags
       min_index = the lowest index among recognized tags (or len(REGION_PRIORITY) if none)
-    Example: if tags_list has ["usa", "europe"], coverage=2, min_index=1 ("usa")
+    The "world" tag counts as the best: full coverage and the lowest index.
+    Examples: ["usa", "europe"] -> (2, 0), ["europe"] -> (1, 1), ["world"] -> (2, 0), ["japan"] -> (0, 2)
     """
     # Check if it's a top region priority
     for t in tags_list:
@@ -94,13 +95,13 @@ def get_video_format_score(tags_list) -> int:
 # Try to get version from tags list
 def try_get_version_score(tags_list) -> tuple[int, bool]:
     for t in tags_list:
-        # Catch numeric revisions
+        # Catch letter revisions, like "Rev A" or "Beta B"
         m = re.match(r"^(rev|proto|alpha|beta|sample|demo)\s+([a-z])$", t)
         if m:
             rev = m.group(2)[0]
             rev_score = ord(rev) - ord('a') + 1
             return rev_score, True
-        # Catch version numbers
+        # Catch numeric versions, like "Rev 1", "Beta 2" or "v1.2.3"
         m = re.match(r"^(?:(rev|beta|alpha|proto|sample|demo)\s+)?v?(\d+(?:\.\d+){0,3})$", t)
         if m:
             version_str = m.group(2)
