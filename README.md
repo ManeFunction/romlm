@@ -63,6 +63,10 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   If not, it tries to keep only one the latest version. USA retro ROMs (not Virtual Console versions) counts as 
   the best version of the game. Also, Europe and EN releases have a higher priority over JP and Asia versions, 
   as well as NTSC counts better, than PAL. **romlm** will never remove all copies of one game!
+
+  Multi-disc games are kept in one piece: the discs always come from one edition (for example, all from the USA
+  release), never the best disc of each region. Only the editions that have all the discs compete, and a set
+  is as good as its worst disc. If no edition has every disc, each disc keeps its own best release.
   
   If you want to keep a Japanese collection intact, I recommend to separate it first. See Usage Examples below.
       

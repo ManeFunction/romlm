@@ -35,12 +35,15 @@ def get_base_name(filename: str) -> str:
         base = name_no_ext.strip()
     return base
 
+# Disc tag, like "disc 2" or "track 03"
+DISC_PATTERN = re.compile(r"(disc|disk|track)\s*(\d+)")
+
 def get_disc_number(tags_list) -> int:
     """
     Returns '-1' if the ROM is not a part of a multi-disc set, or disc number otherwise.
     """
     for t in tags_list:
-        m = re.match(r"(disc|disk|track)\s*(\d+)", t)
+        m = DISC_PATTERN.match(t)
         if m:
             return int(m.group(2))
     return -1

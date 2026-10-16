@@ -184,5 +184,69 @@ class CleanDuplicatesTest(unittest.TestCase):
         self.assertEqual(self.left(), ["Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin"])
 
 
+class MultiDiscTest(unittest.TestCase):
+    """The discs of a set must come from one edition, not the best disc of each region."""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+
+    def clean(self, *names):
+        paths = []
+        for name in names:
+            paths.append(os.path.join(self.folder.name, name))
+            open(paths[-1], "w").close()
+        with contextlib.redirect_stdout(io.StringIO()):
+            duplicates.clean_duplicates(paths, Action.KEEP_ALL, True, False)
+        return sorted(os.listdir(self.folder.name))
+
+    def test_best_complete_set_wins(self):
+        self.assertEqual(
+            self.clean("Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin",
+                       "Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"),
+            ["Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin"])
+
+    def test_discs_are_not_mixed_when_one_disc_of_the_best_region_scores_worse(self):
+        self.assertEqual(
+            self.clean("Game (USA) (Disc 1) (Foo).bin", "Game (USA) (Disc 2).bin",
+                       "Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"),
+            ["Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"])
+
+    def test_incomplete_edition_loses_to_a_complete_one(self):
+        self.assertEqual(
+            self.clean("Game (USA) (Disc 1).bin", "Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"),
+            ["Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"])
+
+    def test_without_a_complete_edition_each_disc_keeps_its_best(self):
+        self.assertEqual(self.clean("Game (USA) (Disc 1).bin", "Game (Europe) (Disc 2).bin"),
+                         ["Game (Europe) (Disc 2).bin", "Game (USA) (Disc 1).bin"])
+
+    def test_a_revision_does_not_split_a_set(self):
+        self.assertEqual(
+            self.clean("Game (USA) (Disc 1) (Rev 1).bin", "Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin",
+                       "Game (Europe) (Disc 1).bin", "Game (Europe) (Disc 2).bin"),
+            ["Game (USA) (Disc 1) (Rev 1).bin", "Game (USA) (Disc 2).bin"])
+
+    def test_betas_are_dropped_per_disc_as_always(self):
+        self.assertEqual(
+            self.clean("Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin", "Game (USA) (Disc 2) (Beta).bin"),
+            ["Game (USA) (Disc 1).bin", "Game (USA) (Disc 2).bin"])
+
+    def test_one_disc_is_not_a_set(self):
+        self.assertEqual(self.clean("Game (USA) (Disc 1).bin", "Game (Europe) (Disc 1).bin"),
+                         ["Game (USA) (Disc 1).bin"])
+
+    def test_different_games_do_not_affect_each_other(self):
+        self.assertEqual(
+            self.clean("A (USA) (Disc 1).bin", "A (USA) (Disc 2).bin", "B (Europe) (Disc 1).bin",
+                       "B (Europe) (Disc 2).bin", "B (USA) (Disc 1).bin"),
+            ["A (USA) (Disc 1).bin", "A (USA) (Disc 2).bin", "B (Europe) (Disc 1).bin", "B (Europe) (Disc 2).bin"])
+
+    def test_editions_ignore_the_disc_and_the_revision(self):
+        edition = lambda name: duplicates.edition_of(Release.parse(name))
+        self.assertEqual(edition("Game (USA) (Disc 1) (Rev 1) (v1.1) (1993-07-09) (Beta).bin"), ("usa",))
+        self.assertEqual(edition("Game (USA, Europe) (En,Fr) (Disc 2).bin"), ("usa", "europe", "en", "fr"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -180,6 +180,56 @@ def print_files_list(releases, color):
     for release in releases:
         print(f" - {color}{release.name}{Style.RESET_ALL}")
 
+def edition_of(release) -> tuple:
+    """
+    The tags that all the discs of one set share: the release without the disc, revision, version, date
+    and beta tags. For example, (USA) (Disc 1) (Rev 1) and (USA) (Disc 2) are both the (usa) edition.
+    """
+    return tuple(t for t in release.tags
+                 if not tags.DISC_PATTERN.match(t)
+                 and not t.startswith("rev ")
+                 and not re.match(rf"^{tags.VERSION_NUMBER}$", t)
+                 and not is_date_tag(t)
+                 and not t.startswith(tags.DEV_PREFIXES))
+
+def pick_editions(by_game) -> dict:
+    """
+    Keeps the discs of a multi-disc game in one piece. Every disc is a game of its own for the scoring, so
+    the best disc 1 and the best disc 2 could come from different regions. Instead, the one best edition
+    that has all the discs is picked, and the releases of the other editions lose.
+    A set is as good as its worst disc. If no edition has all the discs, nothing is decided here.
+    Takes the releases by game key, returns the losers by game key (only the games that have some).
+    """
+    discs_of_base = {}
+    for key, releases in by_game.items():
+        if releases[0].disc > -1:
+            discs_of_base.setdefault(releases[0].base_name, {})[releases[0].disc] = key
+
+    losers = {}
+    for discs in discs_of_base.values():
+        if len(discs) < 2:
+            continue
+        normal = {key: [r for r in by_game[key] if not r.is_beta] for key in discs.values()}
+        if not all(normal.values()):
+            continue
+        editions = {edition_of(r) for releases in normal.values() for r in releases}
+        complete = [e for e in editions if all(any(edition_of(r) == e for r in releases)
+                                               for releases in normal.values())]
+        if len(editions) < 2 or not complete:
+            continue
+
+        def weakest_first(edition):
+            return sorted((min(score_normal_file(r, False) for r in releases if edition_of(r) == edition)
+                           for releases in normal.values()), reverse=True)
+
+        best_score = min(weakest_first(e) for e in complete)
+        winners = [e for e in complete if weakest_first(e) == best_score]
+        for key, releases in normal.items():
+            lost = [r for r in releases if edition_of(r) not in winners]
+            if lost:
+                losers[key] = lost
+    return losers
+
 @dataclass
 class GroupPlan:
     """What to do with the files of one game. Made without touching the disk."""
@@ -188,6 +238,7 @@ class GroupPlan:
     betas_dropped: list = field(default_factory=list)   # betas that are deleted because a release exists
     releases: list = field(default_factory=list)        # ...and those releases
     ties: list = field(default_factory=list)            # equally good releases, the action decides which are kept
+    other_editions: list = field(default_factory=list)  # releases of a multi-disc set that lost to a better edition
     is_beta_group: bool = False
     verdict: str = ""                                   # log label for the kept file, if it is only one
 
@@ -299,6 +350,11 @@ def decide_group(plan, action, choose, is_log_enabled, number) -> Decision:
         print(f" | >> Has {len(plan.releases)} release(s):")
         print_files_list(plan.releases, Fore.GREEN)
 
+    for r in plan.other_editions:
+        if is_log_enabled:
+            print(f"{number}Removing other edition of the set: {Fore.RED}{r.name}{Style.RESET_ALL}")
+        removed.append(r)
+
     label = "Removing earlier Beta" if plan.is_beta_group else "Removing duplicate"
     for r in plan.remove:
         if is_log_enabled:
@@ -319,6 +375,7 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log, choose=ask
     """
     Removes the worse files of every game (see plan_group), and returns the files that are left.
     Everything is decided, including the questions to the user, before the first file is removed.
+    The discs of a multi-disc game come from one edition (see pick_editions).
     [BIOS] files are never grouped nor removed.
     `choose` answers the questions of the Action.ASK, `remove` deletes a file.
     """
@@ -345,12 +402,16 @@ def clean_duplicates(file_list, action, is_log_enabled, is_debug_log, choose=ask
     )
 
     # MAIN LOOP of deciding what to remove
-    groups_iter = by_game.values() if is_log_enabled \
-        else tqdm(by_game.values(), desc="Cleaning Duplicates", total=len(by_game))
+    groups_iter = by_game.items() if is_log_enabled \
+        else tqdm(by_game.items(), desc="Cleaning Duplicates", total=len(by_game))
+
+    other_editions = pick_editions(by_game)
 
     files_to_remove = []
-    for i, releases in enumerate(groups_iter, start=1):
-        plan = plan_group(releases, is_debug_log)
+    for i, (key, releases) in enumerate(groups_iter, start=1):
+        lost = other_editions.get(key, [])
+        plan = plan_group([r for r in releases if r not in lost], is_debug_log)
+        plan.other_editions = lost
         decision = decide_group(plan, action, choose, is_log_enabled, f"({i}/{len(by_game)}) ")
         files_to_keep.update(r.path for r in decision.kept)
         files_to_remove += [r.path for r in decision.removed]
