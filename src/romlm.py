@@ -70,19 +70,12 @@ def remove_meta_files(path, is_log_enabled):
                     print(f"Removed meta file: {Fore.RED}{file_path}{Style.RESET_ALL}")
 
 def remove_empty_subfolders(path, is_log_enabled):
-    for dirpath, dirnames, filenames in os.walk(path, topdown=False):
-        if not dirnames and not filenames:
-            if dirpath != path:
-                os.rmdir(dirpath)
-                if is_log_enabled:
-                    print(f"Removed empty folder: {Fore.RED}{dirpath}{Style.RESET_ALL}")
-                # Kinda cludgy, but keep removing empty parent folders until we hit the root, to clear empty trees
-                parent_dir = os.path.dirname(dirpath)
-                while parent_dir != path and not os.listdir(parent_dir):
-                    os.rmdir(parent_dir)
-                    if is_log_enabled:
-                        print(f"Removed empty folder: {Fore.RED}{parent_dir}{Style.RESET_ALL}")
-                    parent_dir = os.path.dirname(parent_dir)
+    # Bottom-up, so a folder that only held empty folders is empty by the time we get to it
+    for dirpath, _, _ in os.walk(path, topdown=False):
+        if dirpath != path and not os.listdir(dirpath):
+            os.rmdir(dirpath)
+            if is_log_enabled:
+                print(f"Removed empty folder: {Fore.RED}{dirpath}{Style.RESET_ALL}")
 
 DUPLICATES_ACTIONS = {
     "ask": duplicates.Action.ASK,

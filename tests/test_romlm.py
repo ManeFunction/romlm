@@ -1,5 +1,8 @@
+import contextlib
+import io
 import os
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -44,6 +47,55 @@ class GetNewFolderTest(unittest.TestCase):
         with mock.patch("os.makedirs") as makedirs:
             folder("Game (USA).nes")
         makedirs.assert_not_called()
+
+
+class RemoveEmptySubfoldersTest(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        self.root = self.folder.name
+
+    def make(self, *paths):
+        for path in paths:
+            full = os.path.join(self.root, path)
+            if path.endswith("/"):
+                os.makedirs(full, exist_ok=True)
+            else:
+                os.makedirs(os.path.dirname(full), exist_ok=True)
+                open(full, "w").close()
+
+    def folders(self):
+        return sorted(os.path.relpath(d, self.root) for d, _, _ in os.walk(self.root))
+
+    def clean(self, is_log_enabled=False):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            romlm.remove_empty_subfolders(self.root, is_log_enabled)
+        return output.getvalue()
+
+    def test_removes_whole_empty_trees(self):
+        self.make("a/b/c/", "a/d/", "keep/Game (USA).nes")
+        self.clean()
+        self.assertEqual(self.folders(), [".", "keep"])
+
+    def test_keeps_folders_with_files_and_their_parents(self):
+        self.make("a/b/Game (USA).nes", "a/c/", "d/.hidden")
+        self.clean()
+        self.assertEqual(self.folders(), [".", "a", "a/b", "d"])
+
+    def test_keeps_the_root_even_if_it_ends_up_empty(self):
+        self.make("a/b/")
+        self.clean()
+        self.assertTrue(os.path.isdir(self.root))
+        self.assertEqual(os.listdir(self.root), [])
+
+    def test_logs_each_removed_folder_children_first(self):
+        self.make("a/b/")
+        lines = self.clean(True).splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertTrue(lines[0].endswith(os.path.join("a", "b") + "\x1b[0m"))
+        self.assertTrue(lines[1].endswith("a\x1b[0m"))
+        self.assertEqual(self.clean(False), "")
 
 
 class ParseOptionsTest(unittest.TestCase):
