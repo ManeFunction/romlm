@@ -13,7 +13,7 @@ import duplicates
 import operations
 from tags import Release
 
-version = "1.1.0"
+version = "1.2.0"
 
 class CategoryOption(Flag):
     HOMEBREW = auto()
