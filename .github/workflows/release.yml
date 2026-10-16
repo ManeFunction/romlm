@@ -83,7 +83,7 @@ jobs:
           path: dist/romlm.exe
 
   publish-pypi:
-    needs: [build, windows-exe]
+    needs: [build, windows-exe] # don't publish if the (flakiest) exe build failed
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -95,6 +95,8 @@ jobs:
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true # makes re-running a partly failed release safe
 
   github-release:
     needs: [publish-pypi, windows-exe]
