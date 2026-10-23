@@ -62,8 +62,10 @@ class ExtractTest(unittest.TestCase):
         "Many (USA).zip": ["Many (USA).cue", "Many (USA).bin"],
     }
 
-    def extract(self, *args):
+    def extract(self, *args, existing=()):
         with tempfile.TemporaryDirectory() as root:
+            for name in existing:
+                open(os.path.join(root, name), "w").close()
             for name, entries in self.ARCHIVES.items():
                 with zipfile.ZipFile(os.path.join(root, name), "w") as z:
                     for entry in entries:
@@ -77,6 +79,20 @@ class ExtractTest(unittest.TestCase):
     def test_default_makes_folders_only_for_many_files_or_generic_names(self):
         self.assertEqual(self.extract(), sorted([
             "Single (USA).nes", os.path.join("Generic (USA)", "game.iso"),
+            os.path.join("Many (USA)", "Many (USA).bin"), os.path.join("Many (USA)", "Many (USA).cue"),
+        ]))
+
+    def test_default_makes_folders_for_archives_with_the_same_files(self):
+        self.ARCHIVES = {"Game (USA).zip": ["Game.nes"], "Game (USA) (Rev 1).zip": ["Game.nes"],
+                         "Other (USA).zip": ["Other.nes"]}
+        self.assertEqual(self.extract(), sorted([
+            os.path.join("Game (USA)", "Game.nes"), os.path.join("Game (USA) (Rev 1)", "Game.nes"), "Other.nes",
+        ]))
+
+    def test_default_does_not_overwrite_the_files_on_disk(self):
+        self.assertEqual(self.extract(existing=["Single (USA).nes"]), sorted([
+            "Single (USA).nes", os.path.join("Single (USA)", "Single (USA).nes"),
+            os.path.join("Generic (USA)", "game.iso"),
             os.path.join("Many (USA)", "Many (USA).bin"), os.path.join("Many (USA)", "Many (USA).cue"),
         ]))
 

@@ -1,6 +1,7 @@
 import os
 import shutil
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, replace
 from enum import Enum
 from multiprocessing import Pool
 from colorama import Fore, Style
@@ -43,10 +44,61 @@ def plan_operations(files_list, target_folder_for, is_unpacking_enabled, is_pack
             operations.append(Operation(Kind.MOVE, file_name, target_folder))
     return operations
 
+def read_files(operation):
+    """The files inside the operation's archive, or None if it can't be read."""
+    try:
+        return archives.list_files(operation.source)
+    except Exception:
+        return None
+
+def _path_key(path) -> str:
+    """The same key for the paths of one file (case-insensitive, as file systems often are)."""
+    return os.path.normpath(path).lower()
+
+def resolve_extraction_folders(operations) -> list:
+    """
+    Reads the archives that may need their own folders, and decides where each one goes (see archives.ExtractMode).
+    An archive whose files would overwrite another archive's ones, or the files on disk (or moved there by this run),
+    goes to its next folder of archives.extraction_folders, until nothing is overwritten or no folders are left.
+    Colliding archives move on together. The archives that can't be read are left as they are, to fail on unpacking.
+    """
+    to_read = [op for op in operations if op.kind == Kind.UNPACK and op.extract_mode != archives.ExtractMode.PLAIN]
+    if not to_read:
+        return operations
+    with Pool(processes=os.cpu_count()) as pool:
+        listings = {op: files for op, files in zip(to_read, pool.map(read_files, to_read)) if files is not None}
+
+    choices = {op: archives.extraction_folders(op.source, op.target_folder, op.extract_mode, files)
+               for op, files in listings.items()}
+    choice = dict.fromkeys(listings, 0)
+    moved_in = {_path_key(os.path.join(op.target_folder, os.path.basename(op.source)))
+                for op in operations if op.kind == Kind.MOVE}
+
+    def is_taken(path):
+        return _path_key(path) in moved_in or os.path.exists(path)
+
+    while True:
+        owners = defaultdict(set)
+        for op, files in listings.items():
+            for path in files:
+                owners[_path_key(os.path.join(choices[op][choice[op]], path))].add(op)
+        colliding = {op for ops in owners.values() if len(ops) > 1 for op in ops}
+        colliding |= {op for op, files in listings.items() if op not in colliding
+                      and any(is_taken(os.path.join(choices[op][choice[op]], path)) for path in files)}
+        moving_on = [op for op in colliding if choice[op] + 1 < len(choices[op])]
+        if not moving_on:
+            break
+        for op in moving_on:
+            choice[op] += 1
+
+    return [replace(op, target_folder=choices[op][choice[op]], extract_mode=archives.ExtractMode.PLAIN)
+            if op in listings else op for op in operations]
+
 def execute(operation) -> tuple[str, str, str]:
     """Carries out the operation. Returns the file name, a log line and an error message."""
     try:
-        if operation.target_folder:
+        # Unpacking makes its folder itself, as the folder may take the archive's place
+        if operation.target_folder and operation.kind != Kind.UNPACK:
             os.makedirs(operation.target_folder, exist_ok=True)
         target = f"{Fore.BLUE}{operation.target_folder}{Style.RESET_ALL}"
         if operation.kind == Kind.UNPACK:

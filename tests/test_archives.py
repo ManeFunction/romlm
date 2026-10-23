@@ -45,9 +45,15 @@ class GenericNameTest(unittest.TestCase):
 
 
 class ContentsTest(unittest.TestCase):
-    def test_top_level_entries_skip_system_junk(self):
-        entries = ["Game/", "Game/track01.bin", "./Game/track02.raw", "__MACOSX/._Game", ".DS_Store", "Thumbs.db"]
-        self.assertEqual(archives.top_level_entries(entries), {"Game"})
+    def test_files_are_listed_without_folders_and_system_junk(self):
+        with tempfile.TemporaryDirectory() as root:
+            archive = make_zip(os.path.join(root, "Game.zip"), "Game/", "Game/track01.bin", "./Game/track02.raw",
+                               "__MACOSX/._Game", ".DS_Store", "Game/Thumbs.db")
+            self.assertEqual(archives.list_files(archive), ["Game/track01.bin", "Game/track02.raw"])
+
+    def test_top_level_entries(self):
+        self.assertEqual(archives.top_level_entries(["Game/track01.bin", "Game/track02.raw"]), {"Game"})
+        self.assertEqual(archives.top_level_entries(["a.cue", "a.bin"]), {"a.cue", "a.bin"})
 
     def test_own_folder_is_needed_for_many_entries_or_a_generic_one(self):
         self.assertFalse(archives.needs_own_folder(set()))
@@ -89,6 +95,15 @@ class ExtractionFolderTest(unittest.TestCase):
         self.assertEqual(archives.extraction_folder(self.many, "out", ExtractMode.AUTO),
                          os.path.join("out", "PS Game (USA)"))
 
+    def test_folder_choices_by_the_mode(self):
+        self.assertEqual(archives.extraction_folders("A/Game (USA).zip", "A", ExtractMode.AUTO, ["Game (USA).nes"]),
+                         ["A", os.path.join("A", "Game (USA)"), os.path.join("A", "Game (USA).zip")])
+        self.assertEqual(archives.extraction_folders("Game (USA).7z", "", ExtractMode.AUTO, ["game.iso"]),
+                         ["Game (USA)", "Game (USA).7z"])
+        self.assertEqual(archives.extraction_folders("Game (USA).nes.zip", "", ExtractMode.FOLDERS, ["Game (USA).nes"]),
+                         ["Game (USA)", "Game (USA).zip"])
+        self.assertEqual(archives.extraction_folders("Game (USA).zip", "out", ExtractMode.PLAIN, ["game.iso"]), ["out"])
+
     def test_auto_mode_keeps_a_named_folder_inside_the_archive(self):
         archive = make_zip(os.path.join(self.folder.name, "DC Game (USA).zip"),
                            "DC Game (USA)/disc.gdi", "DC Game (USA)/track01.bin")
@@ -106,8 +121,7 @@ class SevenZipContentsTest(unittest.TestCase):
             archive = os.path.join(root, "DC Game (USA).7z")
             subprocess.run([archives.find_seven_zip_binary(), "a", archive, "Game", "disc.gdi"],
                            cwd=os.path.join(root, "src"), check=True, capture_output=True)
-            self.assertEqual(sorted(archives.list_entries(archive)),
-                             ["Game", "Game/track01.bin", "Game/track02.raw", "disc.gdi"])
+            self.assertEqual(sorted(archives.list_files(archive)), ["Game/track01.bin", "Game/track02.raw", "disc.gdi"])
             self.assertEqual(archives.extraction_folder(archive, "", ExtractMode.AUTO), "DC Game (USA)")
 
 

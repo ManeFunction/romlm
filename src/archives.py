@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import zipfile
 from enum import Enum
 from functools import lru_cache
@@ -32,7 +33,8 @@ _EXTENSION = re.compile(r"\.[a-z0-9]{1,5}", re.IGNORECASE)
 class ExtractMode(Enum):
     PLAIN = 1    # the contents go next to the archive
     FOLDERS = 2  # every archive gets its own folder
-    AUTO = 3     # own folder only when the plain extraction would be a mess (see needs_own_folder)
+    AUTO = 3     # own folder only when the plain extraction would be a mess (see needs_own_folder),
+                 # or would overwrite some files
 
 @lru_cache(maxsize=None)
 def find_seven_zip_binary():
@@ -68,25 +70,35 @@ def is_generic_name(name) -> bool:
         previous = token
     return previous is not None
 
-def list_entries(file_name) -> list[str]:
-    """Paths of everything inside the archive, with '/' separators."""
+def _list_paths(file_name):
+    """Paths of the files (not folders) inside the archive, as the archive keeps them."""
     if file_name.lower().endswith(".zip"):
         with zipfile.ZipFile(file_name, 'r') as archive:
-            return archive.namelist()
-    # The technical listing has one "Path = ..." line per entry, after the archive's own block ending with dashes
+            return [info.filename for info in archive.infolist() if not info.is_dir()]
+    # The technical listing has a "Key = Value" block per entry, after the archive's own block ending with dashes
     result = subprocess.run([find_seven_zip_binary(), "l", "-slt", os.path.abspath(file_name)],
                             check=True, capture_output=True)
-    _, _, entries = result.stdout.decode(errors="replace").partition("\n----------")
-    return [line[len("Path = "):].replace("\\", "/") for line in entries.splitlines() if line.startswith("Path = ")]
+    _, _, listing = result.stdout.decode(errors="replace").partition("\n----------")
+    paths = []
+    for block in re.split(r"\n\s*\n", listing):
+        fields = dict(line.split(" = ", 1) for line in block.splitlines() if " = " in line)
+        is_folder = fields.get("Folder") == "+" or fields.get("Attributes", "").startswith("D")
+        if "Path" in fields and not is_folder:
+            paths.append(fields["Path"].replace("\\", "/"))
+    return paths
 
-def top_level_entries(entries) -> set[str]:
-    """Names of the files and folders that land right in the target folder, without the system junk."""
-    names = set()
-    for entry in entries:
-        parts = [part for part in entry.split("/") if part not in ("", ".")]
-        if parts and parts[0].lower() not in META_FILES + META_FOLDERS:
-            names.add(parts[0])
-    return names
+def list_files(file_name) -> list[str]:
+    """Paths of the files inside the archive, with '/' separators, without the system junk."""
+    files = []
+    for path in _list_paths(file_name):
+        parts = [part for part in path.split("/") if part not in ("", ".")]
+        if parts and not any(part.lower() in META_FILES + META_FOLDERS for part in parts):
+            files.append("/".join(parts))
+    return files
+
+def top_level_entries(files) -> set[str]:
+    """Names of the files and folders that land right in the target folder."""
+    return {path.split("/")[0] for path in files}
 
 def needs_own_folder(top_level) -> bool:
     """An archive with a few things inside, or one with a generic name, would clutter the folder it's extracted to."""
@@ -99,17 +111,29 @@ def own_folder_name(file_name, top_level) -> str:
         name = os.path.splitext(name)[0] or name
     return name
 
+def extraction_folders(file_name, target_folder, mode, files) -> list[str]:
+    """
+    Where the archive's `files` can go, from the most to the least preferred, according to the mode: the target
+    folder itself (if AUTO mode finds it fine), an own folder ("Game (USA)"), and an own folder with the archive format
+    ("Game (USA).zip"), for the case another archive of the same name has the same files.
+    """
+    if mode == ExtractMode.PLAIN:
+        return [target_folder]
+    top_level = top_level_entries(files)
+    own_folder = own_folder_name(file_name, top_level)
+    folders = [os.path.join(target_folder, own_folder),
+               os.path.join(target_folder, own_folder + os.path.splitext(file_name)[1])]
+    if mode == ExtractMode.AUTO and not needs_own_folder(top_level):
+        folders.insert(0, target_folder)
+    return folders
+
 def extraction_folder(file_name, target_folder, mode) -> str:
-    """Where the archive's contents should go, according to the mode. AUTO mode reads the archive to decide."""
+    """Where the archive's contents should go, if nothing is in the way. Reads the archive, unless in PLAIN mode."""
     if mode == ExtractMode.PLAIN:
         return target_folder
-    top_level = top_level_entries(list_entries(file_name))
-    if mode == ExtractMode.AUTO and not needs_own_folder(top_level):
-        return target_folder
-    return os.path.join(target_folder, own_folder_name(file_name, top_level))
+    return extraction_folders(file_name, target_folder, mode, list_files(file_name))[0]
 
-def unpack(file_name, target_folder):
-    """Extracts the archive into the folder, and removes the archive."""
+def _extract(file_name, target_folder):
     if file_name.lower().endswith(".7z"):
         subprocess.run(
             [find_seven_zip_binary(), "x", os.path.abspath(file_name), f"-o{os.path.abspath(target_folder)}", "-y"],
@@ -118,7 +142,25 @@ def unpack(file_name, target_folder):
     elif file_name.lower().endswith(".zip"):
         with zipfile.ZipFile(file_name, 'r') as archive:
             archive.extractall(target_folder)
+
+def unpack(file_name, target_folder):
+    """Extracts the archive into the folder, and removes the archive. The folder can be named as the archive itself."""
+    # A folder can't take the archive's place before the archive is gone, so it is extracted next to it first
+    is_in_place = os.path.isfile(target_folder) and os.path.samefile(target_folder, file_name)
+    if is_in_place:
+        folder = tempfile.mkdtemp(prefix=".romlm-", dir=os.path.dirname(os.path.abspath(file_name)))
+    else:
+        folder = target_folder
+        os.makedirs(folder or ".", exist_ok=True)
+    try:
+        _extract(file_name, folder)
+    except Exception:
+        if is_in_place:
+            shutil.rmtree(folder, ignore_errors=True)
+        raise
     os.remove(file_name)
+    if is_in_place:
+        os.rename(folder, target_folder)
 
 def pack(file_name, target_folder, packing_format) -> str:
     """Packs the file into an archive in the folder, and removes the file. Returns the archive path."""

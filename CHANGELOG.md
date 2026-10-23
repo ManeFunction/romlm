@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `-x p` extracts everything next to the archives.
 
 ### Changed
-- `-x` without a mode now gives an archive its own folder when it holds more than one file, or a file with a generic
-  name like `game.iso`, `Disc 1.cue` or `track01.bin`, instead of always extracting next to the archive. Use `-x p`
-  for the old behavior. `--dry-run` reads the archives to show where they would be extracted.
+- `-x` without a mode now gives an archive its own folder when it holds more than one file, a file with a generic
+  name like `game.iso`, `Disc 1.cue` or `track01.bin`, or a file that would overwrite a file already in the folder or
+  one from another archive, instead of always extracting next to the archive. Use `-x p` for the old behavior.
+  `--dry-run` reads the archives to show where they would be extracted.
+- With `-x` and `-x f`, archives of the same name in different formats with the same files inside get folders with
+  the format in the name, like `Game (USA).zip/` and `Game (USA).7z/`.
 - The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
 
 ## [1.2.0] - 2026-10-16

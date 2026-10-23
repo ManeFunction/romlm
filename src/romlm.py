@@ -171,8 +171,9 @@ def build_parser() -> argparse.ArgumentParser:
              "'f' - extract every archive into its own folder\n"
              "'p' - extract all files next to the archives\n"
              "Default is to use an own folder only for archives\n"
-             "with more than one file, or with a generic\n"
-             "file name inside, like 'game.iso' or 'Disc 1.cue'.\n")
+             "with more than one file, with a generic file name\n"
+             "inside, like 'game.iso' or 'Disc 1.cue', or with\n"
+             "a file that is already there or in another archive.\n")
     archive_options.add_argument("-p", "--pack", metavar="format", nargs="?", const="7z", choices=("7z", "zip"),
         help="Pack all files in the folder to 7z/zip format.\n"
              "[format] can be '7z' or 'zip'. Default is '7z'.\n")
@@ -304,6 +305,7 @@ def run(options):
         planned = operations.plan_operations(files_list, lambda file_name: target_folder_for(file_name, options),
                                              options.is_unpacking_enabled, options.is_packing_enabled,
                                              options.packing_format, options.extract_mode)
+        planned = operations.resolve_extraction_folders(planned)
 
         print(">> Processing files...")
         failures = operations.run_operations(planned, options.is_log_enabled, options.is_dry_run)
