@@ -5,34 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-24
 ### Added
+- Added `-n`/`--dry-run` to preview what would be done without changing anything: duplicates are decided but not
+  removed, and the planned moves, packs and unpacks are printed with a summary. Implies `--log`, and doesn't ask
+  about ties unless `-r ask` is given.
 - Added extraction modes to `-x`/`--extract`: `-x f` extracts every archive into its own folder named after it, and
   `-x p` extracts everything next to the archives.
 - `-p`/`--pack` packs the folders of disc-based games as a whole, into a single archive named after the folder, with
   just the files of the folder inside: the opposite of `-x`. A folder is taken for a game when it has a disc sheet
   (`.cue`, `.gdi`, `.ccd`, `.mds`, `.toc` or `.m3u`) or a file with a generic name, and only the files of one game, or
   when it's an extracted disc (PS1/PS2, PS3, PSP, Xbox, Xbox 360).
-
-### Changed
-- `-x` without a mode now gives an archive its own folder when it holds more than one file, a file with a generic
-  name like `game.iso`, `Disc 1.cue` or `track01.bin`, or a file that would overwrite a file already in the folder or
-  one from another archive, instead of always extracting next to the archive. Use `-x p` for the old behavior.
-  `--dry-run` reads the archives to show where they would be extracted.
-- With `-x` and `-x f`, archives of the same name in different formats with the same files inside get folders with
-  the format in the name, like `Game (USA).zip/` and `Game (USA).7z/`.
-- The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
-- Python 3.10+ is now required, as Python 3.9 has reached its end of life.
-
-### Fixed
-- Fixed `-r` treating the names that differ only in case (like `Pac-Man (USA)` and `PAC-MAN (Japan)`) as different
-  games, including the discs of one multi-disc set.
-
-## [1.2.0] - 2026-10-16
-### Added
-- Added `-n`/`--dry-run` to preview what would be done without changing anything: duplicates are decided but not
-  removed, and the planned moves, packs and unpacks are printed with a summary. Implies `--log`, and doesn't ask
-  about ties unless `-r ask` is given.
 
 ### Changed
 - The command line is now parsed with `argparse`. Usage errors exit with code 2 instead of 1, unknown arguments and
@@ -42,8 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Multi-disc games are kept from a single edition: the best edition that has all the discs wins as a whole (scored by
   its worst disc), instead of mixing the best disc of each region. Without a complete edition, each disc keeps its
   own best release as before.
-- Python 3.9+ and setuptools 77+ are now required (the code already needed them; older versions installed a broken
-  package).
+- `-x` without a mode now gives an archive its own folder when it holds more than one file, a file with a generic
+  name like `game.iso`, `Disc 1.cue` or `track01.bin`, or a file that would overwrite a file already in the folder or
+  one from another archive, instead of always extracting next to the archive. Use `-x p` for the old behavior.
+  `--dry-run` reads the archives to show where they would be extracted.
+- With `-x` and `-x f`, archives of the same name in different formats with the same files inside get folders with
+  the format in the name, like `Game (USA).zip/` and `Game (USA).7z/`.
+- The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
+- Python 3.10+ and setuptools 77+ are now required (Python 3.9 has reached its end of life, and older
+  setuptools installed a broken package).
 - The package version is now defined only in `romlm.py`, so the wheel metadata and `romlm -v` can't disagree.
 - Internal refactoring: file names are parsed once into a `Release`, duplicates and file operations are planned
   before being executed, and archive handling moved into its own module. Files that need no operation are no longer
@@ -62,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed a failed archive or move aborting the whole run with a traceback. Failures are now listed at the end (with
   7-Zip's own message), processing continues, the exit code is 1, and a half-written archive is removed.
 - Fixed upper-case `.ZIP` and `.7Z` extensions not being recognized as archives.
+- Fixed `-r` treating the names that differ only in case (like `Pac-Man (USA)` and `PAC-MAN (Japan)`) as different
+  games, including the discs of one multi-disc set.
 
 ## [1.1.0] - 2026-09-22
 ### Changed
