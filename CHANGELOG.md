@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - With `-x` and `-x f`, archives of the same name in different formats with the same files inside get folders with
   the format in the name, like `Game (USA).zip/` and `Game (USA).7z/`.
 - The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
+- Python 3.10+ is now required, as Python 3.9 has reached its end of life.
 
 ### Fixed
 - Fixed `-r` treating the names that differ only in case (like `Pac-Man (USA)` and `PAC-MAN (Japan)`) as different
