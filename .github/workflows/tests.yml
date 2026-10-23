@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, python: "3.9" } # the oldest supported version
+          - { os: ubuntu-latest, python: "3.10" } # the oldest supported version
           - { os: ubuntu-latest, python: "3.x" }
           - { os: windows-latest, python: "3.x" }
     runs-on: ${{ matrix.os }}

@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Changed
+- Python 3.10+ is now required, as Python 3.9 has reached its end of life.
 
 ## [1.2.0] - 2026-10-16
 ### Added
