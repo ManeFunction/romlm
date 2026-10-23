@@ -1,8 +1,10 @@
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
 
 ROMLM = os.path.join(os.path.dirname(__file__), "..", "src", "romlm.py")
 
@@ -51,6 +53,48 @@ class CommandLineTest(unittest.TestCase):
         result = self.romlm()
         self.assertEqual(result.returncode, 0)
         self.assertIn("Nothing to do", result.stdout)
+
+
+class ExtractTest(unittest.TestCase):
+    ARCHIVES = {
+        "Single (USA).zip": ["Single (USA).nes"],
+        "Generic (USA).zip": ["game.iso"],
+        "Many (USA).zip": ["Many (USA).cue", "Many (USA).bin"],
+    }
+
+    def extract(self, *args):
+        with tempfile.TemporaryDirectory() as root:
+            for name, entries in self.ARCHIVES.items():
+                with zipfile.ZipFile(os.path.join(root, name), "w") as z:
+                    for entry in entries:
+                        z.writestr(entry, "data")
+            result = subprocess.run([sys.executable, ROMLM, "-i", root, "-x", *args],
+                                    capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.output = result.stdout
+            return tree(root)
+
+    def test_default_makes_folders_only_for_many_files_or_generic_names(self):
+        self.assertEqual(self.extract(), sorted([
+            "Single (USA).nes", os.path.join("Generic (USA)", "game.iso"),
+            os.path.join("Many (USA)", "Many (USA).bin"), os.path.join("Many (USA)", "Many (USA).cue"),
+        ]))
+
+    def test_folders_for_every_archive(self):
+        self.assertEqual(self.extract("f"), sorted([
+            os.path.join("Single (USA)", "Single (USA).nes"), os.path.join("Generic (USA)", "game.iso"),
+            os.path.join("Many (USA)", "Many (USA).bin"), os.path.join("Many (USA)", "Many (USA).cue"),
+        ]))
+
+    def test_plain_extraction(self):
+        self.assertEqual(self.extract("p"), sorted(["Single (USA).nes", "game.iso", "Many (USA).bin", "Many (USA).cue"]))
+
+    def test_dry_run_shows_the_folders_and_changes_nothing(self):
+        self.assertEqual(self.extract("-n"), sorted(self.ARCHIVES))
+        output = re.sub(r"\x1b\[\d+m", "", self.output)
+        self.assertEqual(set(re.findall(r"Would unpack: (.*)", output)), {
+            "Single (USA).zip to .", "Generic (USA).zip to Generic (USA)", "Many (USA).zip to Many (USA)",
+        })
 
 
 if __name__ == "__main__":

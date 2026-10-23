@@ -9,6 +9,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import romlm
+from archives import ExtractMode
 from duplicates import Action
 from romlm import CategoryOption as C
 
@@ -130,6 +131,14 @@ class ParseOptionsTest(unittest.TestCase):
         self.assertEqual(self.parse("-p").packing_format, "7z")
         self.assertEqual(self.parse("-p", "zip").packing_format, "zip")
 
+    def test_extract_mode(self):
+        self.assertFalse(self.parse().is_unpacking_enabled)
+        self.assertTrue(self.parse("-x").is_unpacking_enabled)
+        self.assertEqual(self.parse("-x").extract_mode, ExtractMode.AUTO)
+        self.assertEqual(self.parse("-x", "-l").extract_mode, ExtractMode.AUTO)
+        self.assertEqual(self.parse("-x", "f").extract_mode, ExtractMode.FOLDERS)
+        self.assertEqual(self.parse("--extract", "p").extract_mode, ExtractMode.PLAIN)
+
     def test_duplicates_action_depends_on_log(self):
         self.assertEqual(self.parse("-r").remove_duplicates_action, Action.KEEP_ALL)
         self.assertEqual(self.parse("-r", "-l").remove_duplicates_action, Action.ASK)
@@ -148,7 +157,8 @@ class ParseOptionsTest(unittest.TestCase):
         self.assertEqual(options.exclude_tags, ["USA"])
 
     def test_mistakes_are_usage_errors(self):
-        for args in (["-p", "rar"], ["-r", "bogus"], ["-u", "pirates"], ["-s", "x"], ["-x", "-p"], ["--nope"]):
+        for args in (["-p", "rar"], ["-r", "bogus"], ["-u", "pirates"], ["-s", "x"], ["-x", "-p"], ["-x", "a"],
+                     ["--nope"]):
             with self.subTest(args=args), mock.patch("sys.stderr"), self.assertRaises(SystemExit) as raised:
                 self.parse(*args)
             self.assertEqual(raised.exception.code, 2)

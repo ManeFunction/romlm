@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import archives
 import operations
+from archives import ExtractMode
 from operations import Kind, Operation
 
 
@@ -57,6 +58,11 @@ class PlanOperationsTest(unittest.TestCase):
     def test_packing_format_is_kept(self):
         self.assertEqual(plan(["A.nes"], pack=True, fmt="7z")[0].packing_format, "7z")
 
+    def test_extract_mode_is_kept(self):
+        self.assertEqual(plan(["A.zip"], unpack=True)[0].extract_mode, ExtractMode.PLAIN)
+        operations_list = operations.plan_operations(["A.zip"], lambda f: "", True, False, "7z", ExtractMode.AUTO)
+        self.assertEqual(operations_list, [Operation(Kind.UNPACK, "A.zip", "", extract_mode=ExtractMode.AUTO)])
+
 
 class ExecuteTest(unittest.TestCase):
     def setUp(self):
@@ -103,11 +109,28 @@ class ExecuteTest(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(read(self.path("out", "Up (USA).nes")), "rom")
 
+    def test_unpacks_into_own_folder_by_the_mode(self):
+        archive = self.path("Game (USA).zip")
+        with zipfile.ZipFile(archive, "w") as z:
+            z.writestr("Game (USA).cue", "cue")
+            z.writestr("Game (USA).bin", "bin")
+        _, log, error = operations.execute(Operation(Kind.UNPACK, archive, self.path("out"),
+                                                     extract_mode=ExtractMode.AUTO))
+        self.assertIsNone(error)
+        self.assertIn(os.path.join("out", "Game (USA)"), log)
+        self.assertEqual(sorted(os.listdir(self.path("out", "Game (USA)"))), ["Game (USA).bin", "Game (USA).cue"])
+
     def test_bad_archive_is_reported_and_kept(self):
         bad = self.touch("Bad (USA).zip", content="not a zip")
         name, log, error = operations.execute(Operation(Kind.UNPACK, bad, self.path("out")))
         self.assertEqual(name, bad)
         self.assertIsNone(log)
+        self.assertIn("BadZipFile", error)
+        self.assertTrue(os.path.exists(bad))
+
+    def test_bad_archive_is_reported_and_kept_in_auto_mode(self):
+        bad = self.touch("Bad (USA).zip", content="not a zip")
+        _, _, error = operations.execute(Operation(Kind.UNPACK, bad, self.path("out"), extract_mode=ExtractMode.AUTO))
         self.assertIn("BadZipFile", error)
         self.assertTrue(os.path.exists(bad))
 
@@ -138,6 +161,24 @@ class DryRunTest(unittest.TestCase):
             self.assertEqual(len(lines), 3)
             for line, word in zip(lines, ("move", "pack", "unpack")):
                 self.assertIn(f"Would {word}", line)
+
+    def test_shows_the_own_folder_of_an_archive(self):
+        with tempfile.TemporaryDirectory() as root:
+            archive = os.path.join(root, "Game (USA).zip")
+            with zipfile.ZipFile(archive, "w") as z:
+                z.writestr("game.iso", "iso")
+            line = operations.describe(Operation(Kind.UNPACK, archive, root, extract_mode=ExtractMode.AUTO))
+            self.assertIn(os.path.join(root, "Game (USA)"), line)
+            self.assertTrue(os.path.exists(archive))
+
+    def test_unreadable_archive_is_noted(self):
+        with tempfile.TemporaryDirectory() as root:
+            bad = os.path.join(root, "Bad (USA).zip")
+            with open(bad, "w") as f:
+                f.write("not a zip")
+            line = operations.describe(Operation(Kind.UNPACK, bad, root, extract_mode=ExtractMode.FOLDERS))
+            self.assertIn("Would unpack", line)
+            self.assertIn("can't read the archive", line)
 
 
 @unittest.skipUnless(archives.find_seven_zip_binary(), "7-Zip is not installed")

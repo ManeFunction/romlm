@@ -21,11 +21,13 @@ class Operation:
     source: str
     target_folder: str
     packing_format: str = "7z"
+    extract_mode: archives.ExtractMode = archives.ExtractMode.PLAIN
 
-def plan_operations(files_list, target_folder_for, is_unpacking_enabled, is_packing_enabled, packing_format) -> list:
+def plan_operations(files_list, target_folder_for, is_unpacking_enabled, is_packing_enabled, packing_format,
+                    extract_mode=archives.ExtractMode.PLAIN) -> list:
     """
     Decides what to do with every file, without touching the disk:
-      - archives are unpacked with `is_unpacking_enabled`,
+      - archives are unpacked with `is_unpacking_enabled`, the `extract_mode` decides on their own folders later,
       - other files (but [BIOS]) are packed with `is_packing_enabled`,
       - the rest is moved into its target folder, unless it is already there.
     `target_folder_for` tells where a file belongs.
@@ -34,7 +36,7 @@ def plan_operations(files_list, target_folder_for, is_unpacking_enabled, is_pack
     for file_name in files_list:
         target_folder = target_folder_for(file_name)
         if is_unpacking_enabled and archives.is_archive(file_name):
-            operations.append(Operation(Kind.UNPACK, file_name, target_folder))
+            operations.append(Operation(Kind.UNPACK, file_name, target_folder, extract_mode=extract_mode))
         elif is_packing_enabled and not archives.is_archive(file_name) and not Release.parse(file_name).is_bios:
             operations.append(Operation(Kind.PACK, file_name, target_folder, packing_format))
         elif os.path.normpath(os.path.dirname(file_name) or ".") != os.path.normpath(target_folder):
@@ -48,8 +50,9 @@ def execute(operation) -> tuple[str, str, str]:
             os.makedirs(operation.target_folder, exist_ok=True)
         target = f"{Fore.BLUE}{operation.target_folder}{Style.RESET_ALL}"
         if operation.kind == Kind.UNPACK:
-            archives.unpack(operation.source, operation.target_folder)
-            result_log = f" >> Unpacked to: {target}"
+            folder = archives.extraction_folder(operation.source, operation.target_folder, operation.extract_mode)
+            archives.unpack(operation.source, folder)
+            result_log = f" >> Unpacked to: {Fore.BLUE}{folder or '.'}{Style.RESET_ALL}"
         elif operation.kind == Kind.PACK:
             archive_file = archives.pack(operation.source, operation.target_folder, operation.packing_format)
             result_log = f" >> Packed to: {Fore.BLUE}{archive_file}{Style.RESET_ALL}"
@@ -64,7 +67,14 @@ def describe(operation) -> str:
     """What the operation does, for the dry run."""
     target = operation.target_folder or "."
     if operation.kind == Kind.UNPACK:
-        return f" >> Would unpack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {Fore.BLUE}{target}{Style.RESET_ALL}"
+        # Reading the archive to find its folder changes nothing, so the dry run shows the real destination
+        try:
+            target = archives.extraction_folder(operation.source, operation.target_folder, operation.extract_mode) or "."
+            note = ""
+        except Exception as error:
+            note = f" ({Fore.RED}can't read the archive{Style.RESET_ALL}: {archives.describe_error(error)})"
+        return (f" >> Would unpack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} "
+                f"to {Fore.BLUE}{target}{Style.RESET_ALL}{note}")
     if operation.kind == Kind.PACK:
         return (f" >> Would pack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {operation.packing_format} "
                 f"in {Fore.BLUE}{target}{Style.RESET_ALL}")

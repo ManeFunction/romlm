@@ -15,6 +15,14 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 - **Extract (`-x, --extract`)**  
   Automatically unpacks all `.7z` or `.zip` files in the current directory (or a specified folder) into subfolders. 
   Supports nested subfolders, keeping all the structure.
+    - `-x` extracts the files right next to the archive, but gives an archive its own folder (named after the
+      archive) when the files would make a mess otherwise: when there is more than one file inside (like `.cue` and
+      `.bin` tracks), or when the file has a generic name, telling nothing about the game, which is common for
+      disc-based systems: `game.iso`, `Disc 1.cue`, `CD2.bin`, `track01.bin`, `disk1.adf`, `Disk 1 Side A.st`,
+      `EBOOT.BIN`, `default.xbe`, `main.dol` and so on. An archive that already keeps everything in one properly
+      named folder is extracted as it is.
+    - `f` extracts every archive into its own folder.
+    - `p` is a plain extraction: all the files go right next to the archives.
 
   ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/extract.png)
 

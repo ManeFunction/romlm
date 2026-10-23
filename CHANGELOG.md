@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- Added extraction modes to `-x`/`--extract`: `-x f` extracts every archive into its own folder named after it, and
+  `-x p` extracts everything next to the archives.
+
+### Changed
+- `-x` without a mode now gives an archive its own folder when it holds more than one file, or a file with a generic
+  name like `game.iso`, `Disc 1.cue` or `track01.bin`, instead of always extracting next to the archive. Use `-x p`
+  for the old behavior. `--dry-run` reads the archives to show where they would be extracted.
 
 ## [1.2.0] - 2026-10-16
 ### Added
