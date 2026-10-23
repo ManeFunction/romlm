@@ -35,6 +35,19 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   Compresses all uncompressed files in the current directory (or a specified folder) into `.7z` or `.zip` archives. 
   Supports nested subfolders, keeping all the structure.
 
+  Folders of disc-based games are packed as a whole: all the files of such a folder go into a single archive named
+  after it (`Sonic CD (USA)/` becomes `Sonic CD (USA).7z`), without the folder itself, so it's the opposite of `-x`.
+  A folder is taken for a game when it holds:
+    - a disc sheet with its tracks: `.cue` (with `.bin`, `.iso` or `.img`), `.gdi`, `.ccd` (with `.img` and
+      `.sub`), `.mds` (with `.mdf`), `.toc`, or an `.m3u` playlist of a multi-disc game,
+    - or a file with a generic name, like `game.iso` or `track01.bin` (see `-x` above),
+    - and nothing but the files of one game, besides the files with generic names: either the game it is named
+      after (`Sonic CD (USA)/Sonic CD (USA).cue`), or any single game (`FF7/Final Fantasy VII (USA).cue`) if the
+      folder has no subfolders and isn't a `--sort` one (`A`-`Z`, `1-9`, `!...`). So the folders with many games
+      are never packed together.
+    - An extracted disc is a game folder whatever the names are: it has `SYSTEM.CNF` (PS1, PS2), `PS3_DISC.SFB` or
+      `PS3_GAME/` (PS3), `UMD_DATA.BIN` or `PSP_GAME/` (PSP), `default.xbe` (Xbox) or `default.xex` (Xbox 360).
+
   ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/pack.png)
 
 

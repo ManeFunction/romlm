@@ -128,6 +128,10 @@ class CleanDuplicatesTest(unittest.TestCase):
         self.assertEqual(self.left(), ["Game (USA).nes", "Other (USA).nes"])
         self.assertEqual([os.path.basename(p) for p in kept], ["Game (USA).nes", "Other (USA).nes"])
 
+    def test_names_in_another_case_are_duplicates(self):
+        self.clean(self.make("Pac-Man (USA).nes", "PAC-MAN (Japan).nes"))
+        self.assertEqual(self.left(), ["Pac-Man (USA).nes"])
+
     def test_keep_all_keeps_the_tied_files(self):
         self.make("Game (USA) (Foo).nes", "Game (USA) (Bar).nes")
         self.clean([os.path.join(self.folder.name, n) for n in self.left()])

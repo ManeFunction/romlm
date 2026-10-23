@@ -45,6 +45,23 @@ def find_seven_zip_binary():
             return path
     return None
 
+def exists_ignoring_case(path, listdir=os.listdir) -> bool:
+    """Is there a file or folder at the path, with its names in any case, as case-insensitive file systems see it."""
+    return _actual_path(os.path.normpath(path), listdir) is not None
+
+def _actual_path(path, listdir):
+    """The path as it is on disk, with the names in any case, or None if there is nothing."""
+    if os.path.exists(path):
+        return path
+    parent, name = os.path.split(path)
+    if not name:
+        return None
+    actual_parent = _actual_path(parent or ".", listdir)
+    if actual_parent is None or not os.path.isdir(actual_parent):
+        return None
+    match = next((entry for entry in listdir(actual_parent) if entry.lower() == name.lower()), None)
+    return os.path.join(actual_parent, match) if match is not None else None
+
 def is_archive(file_name) -> bool:
     return file_name.lower().endswith(ARCHIVE_EXTENSIONS)
 
@@ -107,7 +124,7 @@ def needs_own_folder(top_level) -> bool:
 def own_folder_name(file_name, top_level) -> str:
     """The archive name without its extension, and without the inner file's extension too, if romlm packed it."""
     name = os.path.splitext(os.path.basename(file_name))[0]
-    if name in top_level:
+    if name.lower() in {entry.lower() for entry in top_level}:
         name = os.path.splitext(name)[0] or name
     return name
 
@@ -162,28 +179,72 @@ def unpack(file_name, target_folder):
     if is_in_place:
         os.rename(folder, target_folder)
 
+def _clean_and_list(folder) -> list[str]:
+    """Removes the system junk from the folder, and lists the files left, relative to it."""
+    files = []
+    for dirpath, dirnames, filenames in os.walk(folder):
+        for d in [d for d in dirnames if d.lower() in META_FOLDERS]:
+            shutil.rmtree(os.path.join(dirpath, d))
+            dirnames.remove(d)
+        for f in filenames:
+            if f.lower() in META_FILES:
+                os.remove(os.path.join(dirpath, f))
+            else:
+                files.append(os.path.relpath(os.path.join(dirpath, f), folder))
+    return sorted(files)
+
+def _remove_packed(folder, files):
+    """Removes the packed files, and the folders left empty after them, up to the packed folder itself."""
+    for name in files:
+        os.remove(os.path.join(folder, name))
+    for dirpath, _, _ in os.walk(folder, topdown=False):
+        if not os.listdir(dirpath):
+            os.rmdir(dirpath)
+
 def pack(file_name, target_folder, packing_format) -> str:
-    """Packs the file into an archive in the folder, and removes the file. Returns the archive path."""
+    """
+    Packs the file into an archive in the folder, and removes the file. Returns the archive path.
+    A folder is packed the same way, as a single archive with the files of the folder, but not the folder itself.
+    """
     archive_file = f"{os.path.join(target_folder, os.path.basename(file_name))}.{packing_format}"
+    if os.path.isdir(file_name):
+        # Adding to an existing archive would mix two games in one
+        if exists_ignoring_case(archive_file):
+            raise FileExistsError(f"'{archive_file}' already exists")
+        source_folder = os.path.abspath(file_name)
+        files = _clean_and_list(file_name)
+    else:
+        source_folder = os.path.dirname(os.path.abspath(file_name))
+        files = [os.path.basename(file_name)]
+    list_file = None
     try:
         if packing_format == "7z":
-            # Run with cwd set to the source file's folder, passing only its basename,
-            # so the archive stores just that name (matching the old arcname behavior)
-            # instead of the full source path.
+            # Run with cwd set to the source folder, passing the names relative to it, so the archive stores
+            # just them, instead of the full source paths. A list file keeps a big folder within the
+            # command line length limit.
+            with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".txt", delete=False) as listing:
+                listing.write("\n".join(files))
+                list_file = listing.name
             subprocess.run(
-                [find_seven_zip_binary(), "a", os.path.abspath(archive_file), os.path.basename(file_name)],
-                cwd=os.path.dirname(os.path.abspath(file_name)),
-                check=True, capture_output=True,
+                [find_seven_zip_binary(), "a", os.path.abspath(archive_file), "-scsUTF-8", f"@{list_file}"],
+                cwd=source_folder, check=True, capture_output=True,
             )
         elif packing_format == "zip":
             with zipfile.ZipFile(archive_file, 'w', zipfile.ZIP_DEFLATED) as archive:
-                archive.write(file_name, arcname=os.path.basename(file_name))
+                for name in files:
+                    archive.write(os.path.join(source_folder, name), arcname=name)
     except Exception:
         # Don't leave a half-written archive next to the source file
         if os.path.exists(archive_file):
             os.remove(archive_file)
         raise
-    os.remove(file_name)
+    finally:
+        if list_file is not None:
+            os.remove(list_file)
+    if os.path.isdir(file_name):
+        _remove_packed(file_name, files)
+    else:
+        os.remove(file_name)
     return archive_file
 
 def describe_error(error) -> str:

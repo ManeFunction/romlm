@@ -25,14 +25,17 @@ def get_from_filename(filename: str) -> list[str]:
     return [tag.lower() for tag in all_tags]
 
 def get_base_name(filename: str) -> str:
-    name_no_ext = os.path.splitext(filename)[0]
-    idx_1 = name_no_ext.find('(')
-    idx_2 = name_no_ext.find('[')
+    return strip_tags(os.path.splitext(filename)[0])
+
+def strip_tags(name: str) -> str:
+    """The name before the first (...) or [...] tag, like a folder name without them."""
+    idx_1 = name.find('(')
+    idx_2 = name.find('[')
     idx = min(idx_1, idx_2) if idx_1 != -1 and idx_2 != -1 else max(idx_1, idx_2)
     if idx != -1:
-        base = name_no_ext[:idx].strip()
+        base = name[:idx].strip()
     else:
-        base = name_no_ext.strip()
+        base = name.strip()
     return base
 
 # Disc tag, like "disc 2" or "track 03"
@@ -79,5 +82,6 @@ class Release:
 
     @property
     def game_key(self) -> str:
-        """The same for all the files of one game (each disc is a game of its own)."""
-        return f"{self.base_name} (Disc {self.disc})" if self.disc > -1 else self.base_name
+        """The same for all the files of one game (each disc is a game of its own), whatever the case of the name."""
+        base_name = self.base_name.lower()
+        return f"{base_name} (disc {self.disc})" if self.disc > -1 else base_name

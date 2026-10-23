@@ -25,11 +25,16 @@ class ReleaseParseTest(unittest.TestCase):
     def test_each_disc_is_a_game_of_its_own(self):
         disc_1 = Release.parse("Game (USA) (Disc 1).bin")
         disc_2 = Release.parse("Game (Europe) (Disc 2).bin")
-        self.assertEqual(disc_1.game_key, "Game (Disc 1)")
+        self.assertEqual(disc_1.game_key, "game (disc 1)")
         self.assertNotEqual(disc_1.game_key, disc_2.game_key)
 
     def test_regions_do_not_split_a_game(self):
         self.assertEqual(Release.parse("Game (USA).nes").game_key, Release.parse("Game (Japan).nes").game_key)
+
+    def test_case_does_not_split_a_game(self):
+        self.assertEqual(Release.parse("Pac-Man (USA).nes").game_key, Release.parse("PAC-MAN (Japan).nes").game_key)
+        self.assertEqual(Release.parse("Game (USA) (Disc 1).bin").game_key,
+                         Release.parse("GAME (Japan) (DISC 1).bin").game_key)
 
     def test_bios(self):
         release = Release.parse("!!BIOS/[BIOS] Sega CD (USA).bin")

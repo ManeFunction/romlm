@@ -2,12 +2,14 @@ import os
 import shutil
 from collections import defaultdict
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from enum import Enum
 from multiprocessing import Pool
 from colorama import Fore, Style
 from tqdm import tqdm
 
 import archives
+import discs
 from tags import Release
 
 class Kind(Enum):
@@ -29,12 +31,22 @@ def plan_operations(files_list, target_folder_for, is_unpacking_enabled, is_pack
     """
     Decides what to do with every file, without touching the disk:
       - archives are unpacked with `is_unpacking_enabled`, the `extract_mode` decides on their own folders later,
-      - other files (but [BIOS]) are packed with `is_packing_enabled`,
+      - other files (but [BIOS]) are packed with `is_packing_enabled`, and the folders of disc-based games
+        (see discs.find_game_folders) are packed as a whole, each one into a single archive named after it,
       - the rest is moved into its target folder, unless it is already there.
-    `target_folder_for` tells where a file belongs.
+    `target_folder_for` tells where a file (or a game folder) belongs.
     """
+    game_folders = discs.find_game_folders(files_list) if is_packing_enabled else []
+    packed_folders = set()
     operations = []
     for file_name in files_list:
+        game_folder = next((folder for folder in game_folders
+                            if os.path.normpath(file_name).startswith(folder + os.sep)), None)
+        if game_folder is not None:
+            if game_folder not in packed_folders:
+                packed_folders.add(game_folder)
+                operations.append(Operation(Kind.PACK, game_folder, target_folder_for(game_folder), packing_format))
+            continue
         target_folder = target_folder_for(file_name)
         if is_unpacking_enabled and archives.is_archive(file_name):
             operations.append(Operation(Kind.UNPACK, file_name, target_folder, extract_mode=extract_mode))
@@ -74,8 +86,11 @@ def resolve_extraction_folders(operations) -> list:
     moved_in = {_path_key(os.path.join(op.target_folder, os.path.basename(op.source)))
                 for op in operations if op.kind == Kind.MOVE}
 
+    # Nothing changes on disk while deciding, so the folder listings can be reused
+    listdir = lru_cache(maxsize=None)(os.listdir)
+
     def is_taken(path):
-        return _path_key(path) in moved_in or os.path.exists(path)
+        return _path_key(path) in moved_in or archives.exists_ignoring_case(path, listdir)
 
     while True:
         owners = defaultdict(set)
@@ -128,7 +143,8 @@ def describe(operation) -> str:
         return (f" >> Would unpack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} "
                 f"to {Fore.BLUE}{target}{Style.RESET_ALL}{note}")
     if operation.kind == Kind.PACK:
-        return (f" >> Would pack: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {operation.packing_format} "
+        source = operation.source + (os.sep if os.path.isdir(operation.source) else "")
+        return (f" >> Would pack: {Fore.GREEN}{source}{Style.RESET_ALL} to {operation.packing_format} "
                 f"in {Fore.BLUE}{target}{Style.RESET_ALL}")
     return f" >> Would move: {Fore.GREEN}{operation.source}{Style.RESET_ALL} to {Fore.BLUE}{target}{Style.RESET_ALL}"
 

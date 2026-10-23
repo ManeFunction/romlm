@@ -55,6 +55,23 @@ class CommandLineTest(unittest.TestCase):
         self.assertIn("Nothing to do", result.stdout)
 
 
+class PackGameFoldersTest(unittest.TestCase):
+    def test_game_folders_are_packed_and_sorted_as_a_whole(self):
+        with tempfile.TemporaryDirectory() as root:
+            for name in ("Sonic CD (USA)/Sonic CD (USA).cue", "Sonic CD (USA)/Sonic CD (USA) (Track 01).bin",
+                         "Lunar (USA)/game.iso", "Zelda (USA).nes"):
+                os.makedirs(os.path.dirname(os.path.join(root, name)), exist_ok=True)
+                open(os.path.join(root, name), "w").close()
+            result = subprocess.run([sys.executable, ROMLM, "-i", root, "-p", "zip", "-s"],
+                                    capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(tree(root), sorted([os.path.join("S", "Sonic CD (USA).zip"),
+                                                 os.path.join("L", "Lunar (USA).zip"),
+                                                 os.path.join("Z", "Zelda (USA).nes.zip")]))
+            with zipfile.ZipFile(os.path.join(root, "S", "Sonic CD (USA).zip")) as z:
+                self.assertEqual(sorted(z.namelist()), ["Sonic CD (USA) (Track 01).bin", "Sonic CD (USA).cue"])
+
+
 class ExtractTest(unittest.TestCase):
     ARCHIVES = {
         "Single (USA).zip": ["Single (USA).nes"],

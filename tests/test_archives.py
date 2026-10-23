@@ -68,6 +68,16 @@ class ContentsTest(unittest.TestCase):
         self.assertEqual(archives.own_folder_name("Game Vol. 1 (USA).7z", {"a", "b"}), "Game Vol. 1 (USA)")
         # romlm packs "Game.nes" into "Game.nes.zip"
         self.assertEqual(archives.own_folder_name("Game (USA).nes.zip", {"Game (USA).nes"}), "Game (USA)")
+        self.assertEqual(archives.own_folder_name("Game (USA).nes.zip", {"GAME (USA).NES"}), "Game (USA)")
+
+    def test_exists_ignoring_case(self):
+        with tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(root, "Game (USA)"))
+            open(os.path.join(root, "Game (USA)", "game.iso"), "w").close()
+            self.assertTrue(archives.exists_ignoring_case(os.path.join(root, "game (usa)", "GAME.ISO")))
+            self.assertTrue(archives.exists_ignoring_case(os.path.join(root, "Game (USA)")))
+            self.assertFalse(archives.exists_ignoring_case(os.path.join(root, "Game (USA)", "game.cue")))
+            self.assertFalse(archives.exists_ignoring_case(os.path.join(root, "Other", "game.iso")))
 
 
 class ExtractionFolderTest(unittest.TestCase):

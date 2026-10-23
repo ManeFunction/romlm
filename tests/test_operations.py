@@ -55,6 +55,24 @@ class PlanOperationsTest(unittest.TestCase):
             Operation(Kind.MOVE, "!!BIOS/[BIOS] Sega CD (USA).bin", "out"),
         ])
 
+    def test_game_folders_are_packed_as_a_whole(self):
+        files = [os.path.join("Sonic CD (USA)", "Sonic CD (USA).cue"), os.path.join("Sonic CD (USA)", "Sonic CD (USA).bin"),
+                 "Zelda (USA).nes", os.path.join("S", "Snatcher (USA).cue")]
+        self.assertEqual(plan(files, lambda f: "out", pack=True), [
+            Operation(Kind.PACK, "Sonic CD (USA)", "out", "zip"),
+            Operation(Kind.PACK, "Zelda (USA).nes", "out", "zip"),
+            Operation(Kind.PACK, os.path.join("S", "Snatcher (USA).cue"), "out", "zip"),
+        ])
+
+    def test_game_folder_goes_next_to_itself_without_sorting(self):
+        files = [os.path.join("CD", "Game (USA)", "Game (USA).cue"), os.path.join("CD", "Game (USA)", "Game (USA).bin")]
+        self.assertEqual(plan(files, pack=True), [Operation(Kind.PACK, os.path.join("CD", "Game (USA)"), "CD", "zip")])
+
+    def test_game_folders_are_left_alone_without_packing(self):
+        files = [os.path.join("Game (USA)", "Game (USA).cue"), os.path.join("Game (USA)", "Game (USA).bin")]
+        self.assertEqual(plan(files), [])
+        self.assertEqual([op.source for op in plan(files, lambda f: "G")], files)
+
     def test_packing_format_is_kept(self):
         self.assertEqual(plan(["A.nes"], pack=True, fmt="7z")[0].packing_format, "7z")
 
@@ -100,6 +118,11 @@ class ResolveExtractionFoldersTest(unittest.TestCase):
         self.assertEqual(self.resolve(self.archive("Game (USA) (Rev 1).zip", "Game (USA).nes"),
                                       self.archive("Other (USA).zip", "Other (USA).nes")),
                          {"Game (USA) (Rev 1).zip": "Game (USA) (Rev 1)", "Other (USA).zip": "."})
+
+    def test_file_on_disk_in_another_case_is_not_overwritten(self):
+        open(os.path.join(self.folder.name, "GAME (USA).NES"), "w").close()
+        self.assertEqual(self.resolve(self.archive("Game (USA) (Rev 1).zip", "Game (USA).nes")),
+                         {"Game (USA) (Rev 1).zip": "Game (USA) (Rev 1)"})
 
     def test_archive_does_not_overwrite_a_file_moved_in_by_the_run(self):
         archive = self.archive("Game (USA) (Rev 1).zip", "Game (USA).nes")
@@ -197,6 +220,30 @@ class ExecuteTest(unittest.TestCase):
         self.assertIsNone(error)
         self.assertFalse(os.path.exists(archive))
         self.assertEqual(read(self.path("back", "Game (USA).nes")), "rom")
+
+    def test_packs_a_folder_without_the_folder_itself(self):
+        self.touch("Game (USA)", "Game (USA).cue", content="cue")
+        self.touch("Game (USA)", "Extras", "Game (USA).bin", content="bin")
+        self.touch("Game (USA)", ".DS_Store")
+        self.touch("Game (USA)", "__MACOSX", "._Game (USA).cue")
+        _, log, error = operations.execute(Operation(Kind.PACK, self.path("Game (USA)"), self.path("out"), "zip"))
+        self.assertIsNone(error)
+        self.assertFalse(os.path.exists(self.path("Game (USA)")))
+        with zipfile.ZipFile(self.path("out", "Game (USA).zip")) as z:
+            self.assertEqual(sorted(z.namelist()), ["Extras/Game (USA).bin", "Game (USA).cue"])
+            self.assertEqual(z.read("Game (USA).cue"), b"cue")
+
+    def test_folder_is_not_packed_into_an_existing_archive(self):
+        self.touch("Game (USA)", "Game (USA).cue", content="cue")
+        self.touch("Game (USA).zip", content="other")
+        self.touch("Other (USA)", "Other (USA).cue", content="cue")
+        self.touch("OTHER (USA).ZIP", content="other")
+        _, _, error = operations.execute(Operation(Kind.PACK, self.path("Other (USA)"), self.root, "zip"))
+        self.assertIn("already exists", error)
+        _, _, error = operations.execute(Operation(Kind.PACK, self.path("Game (USA)"), self.root, "zip"))
+        self.assertIn("already exists", error)
+        self.assertEqual(read(self.path("Game (USA).zip")), "other")
+        self.assertEqual(read(self.path("Game (USA)", "Game (USA).cue")), "cue")
 
     def test_unpacks_an_archive_with_an_upper_case_extension(self):
         archive = self.path("Up (USA).ZIP")
@@ -306,6 +353,20 @@ class SevenZipTest(unittest.TestCase):
             self.assertFalse(os.path.exists(source))
             archives.unpack(archive, os.path.join(root, "back"))
             self.assertEqual(read(os.path.join(root, "back", "Game (USA).nes")), "rom")
+
+    def test_pack_a_folder_to_7z_and_back(self):
+        with tempfile.TemporaryDirectory() as root:
+            folder = os.path.join(root, "Gamé (USA)")
+            os.makedirs(os.path.join(folder, "Sub"))
+            for name in ("Gamé (USA).cue", os.path.join("Sub", "track 01.bin")):
+                with open(os.path.join(folder, name), "w") as f:
+                    f.write(name)
+            archive = archives.pack(folder, root, "7z")
+            self.assertEqual(archive, os.path.join(root, "Gamé (USA).7z"))
+            self.assertFalse(os.path.exists(folder))
+            self.assertEqual(sorted(archives.list_files(archive)), ["Gamé (USA).cue", "Sub/track 01.bin"])
+            archives.unpack(archive, folder)
+            self.assertEqual(read(os.path.join(folder, "Sub", "track 01.bin")), os.path.join("Sub", "track 01.bin"))
 
 
 if __name__ == "__main__":

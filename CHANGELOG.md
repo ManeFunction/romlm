@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Added extraction modes to `-x`/`--extract`: `-x f` extracts every archive into its own folder named after it, and
   `-x p` extracts everything next to the archives.
+- `-p`/`--pack` packs the folders of disc-based games as a whole, into a single archive named after the folder, with
+  just the files of the folder inside: the opposite of `-x`. A folder is taken for a game when it has a disc sheet
+  (`.cue`, `.gdi`, `.ccd`, `.mds`, `.toc` or `.m3u`) or a file with a generic name, and only the files of one game, or
+  when it's an extracted disc (PS1/PS2, PS3, PSP, Xbox, Xbox 360).
 
 ### Changed
 - `-x` without a mode now gives an archive its own folder when it holds more than one file, a file with a generic
@@ -18,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - With `-x` and `-x f`, archives of the same name in different formats with the same files inside get folders with
   the format in the name, like `Game (USA).zip/` and `Game (USA).7z/`.
 - The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
+
+### Fixed
+- Fixed `-r` treating the names that differ only in case (like `Pac-Man (USA)` and `PAC-MAN (Japan)`) as different
+  games, including the discs of one multi-disc set.
 
 ## [1.2.0] - 2026-10-16
 ### Added
