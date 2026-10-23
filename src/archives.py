@@ -93,9 +93,10 @@ def _list_paths(file_name):
         with zipfile.ZipFile(file_name, 'r') as archive:
             return [info.filename for info in archive.infolist() if not info.is_dir()]
     # The technical listing has a "Key = Value" block per entry, after the archive's own block ending with dashes
-    result = subprocess.run([find_seven_zip_binary(), "l", "-slt", os.path.abspath(file_name)],
+    # -sccUTF-8 since 7-Zip prints in the OEM code page on Windows otherwise
+    result = subprocess.run([find_seven_zip_binary(), "l", "-slt", "-sccUTF-8", os.path.abspath(file_name)],
                             check=True, capture_output=True)
-    _, _, listing = result.stdout.decode(errors="replace").partition("\n----------")
+    _, _, listing = result.stdout.decode("utf-8", errors="replace").partition("\n----------")
     paths = []
     for block in re.split(r"\n\s*\n", listing):
         fields = dict(line.split(" = ", 1) for line in block.splitlines() if " = " in line)

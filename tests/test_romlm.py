@@ -66,7 +66,7 @@ class RemoveEmptySubfoldersTest(unittest.TestCase):
                 open(full, "w").close()
 
     def folders(self):
-        return sorted(os.path.relpath(d, self.root) for d, _, _ in os.walk(self.root))
+        return sorted(os.path.relpath(d, self.root).replace(os.sep, "/") for d, _, _ in os.walk(self.root))
 
     def clean(self, is_log_enabled=False):
         output = io.StringIO()
