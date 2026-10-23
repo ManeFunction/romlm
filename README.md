@@ -15,6 +15,18 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 - **Extract (`-x, --extract`)**  
   Automatically unpacks all `.7z` or `.zip` files in the current directory (or a specified folder) into subfolders. 
   Supports nested subfolders, keeping all the structure.
+    - parameterless call is a "smart" mode, it extracts the files right next to the archive, but gives an archive
+      its own folder (named after the archive) when the files would make a mess otherwise: when there is more than
+      one file inside (like `.cue` and `.bin` tracks), or when the file has a generic name, telling nothing about the game,
+      which is common for disc-based systems: `game.iso`, `Disc 1.cue`, `CD2.bin`, `track01.bin`, `disk1.adf`, `Disk 1 Side A.st`,
+      `EBOOT.BIN`, `default.xbe`, `main.dol` and so on, or when its files would overwrite the files already
+      in the folder, or the files of another archive (all such archives get own folders then). An archive that
+      already keeps everything in one properly named folder is extracted as it is.
+    - `f` extracts every archive into its own folder.
+    - With `-x` and `-x f`, archives of the same name but different formats (like `Game (USA).zip` and
+      `Game (USA).7z`) that have the same files inside get folders with the format in the name: `Game (USA).zip/`
+      and `Game (USA).7z/`. The same happens when the own folder already has these files.
+    - `p` is a plain extraction: all the files go right next to the archives.
 
   ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/extract.png)
 
@@ -22,6 +34,19 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 - **Pack (`-p, --pack`)**  
   Compresses all uncompressed files in the current directory (or a specified folder) into `.7z` or `.zip` archives. 
   Supports nested subfolders, keeping all the structure.
+
+  Folders of disc-based games are packed as a whole: all the files of such a folder go into a single archive named
+  after it (`Sonic CD (USA)/` becomes `Sonic CD (USA).7z`), without the folder itself, so it's the opposite of `-x`.
+  A folder is taken for a game when it holds:
+    - a disc sheet with its tracks: `.cue` (with `.bin`, `.iso` or `.img`), `.gdi`, `.ccd` (with `.img` and
+      `.sub`), `.mds` (with `.mdf`), `.toc`, or an `.m3u` playlist of a multi-disc game,
+    - or a file with a generic name, like `game.iso` or `track01.bin` (see `-x` above),
+    - and nothing but the files of one game, besides the files with generic names: either the game it is named
+      after (`Sonic CD (USA)/Sonic CD (USA).cue`), or any single game (`FF7/Final Fantasy VII (USA).cue`) if the
+      folder has no subfolders and isn't a `--sort` one (`A`-`Z`, `1-9`, `!...`). So the folders with many games
+      are never packed together.
+    - An extracted disc is a game folder whatever the names are: it has `SYSTEM.CNF` (PS1, PS2), `PS3_DISC.SFB` or
+      `PS3_GAME/` (PS3), `UMD_DATA.BIN` or `PSP_GAME/` (PSP), `default.xbe` (Xbox) or `default.xex` (Xbox 360).
 
   ![](https://raw.githubusercontent.com/wiki/ManeFunction/romlm/pack.png)
 
@@ -101,7 +126,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 
 
 - **Other Utilities**  
-  - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`).
+  - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`, `__MACOSX` folders).
   - Removes empty subdirectories after sorting.
   - Provides an in-script help guide (`-h, --help`).
 

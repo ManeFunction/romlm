@@ -9,6 +9,7 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import romlm
+from archives import ExtractMode
 from duplicates import Action
 from romlm import CategoryOption as C
 
@@ -65,7 +66,7 @@ class RemoveEmptySubfoldersTest(unittest.TestCase):
                 open(full, "w").close()
 
     def folders(self):
-        return sorted(os.path.relpath(d, self.root) for d, _, _ in os.walk(self.root))
+        return sorted(os.path.relpath(d, self.root).replace(os.sep, "/") for d, _, _ in os.walk(self.root))
 
     def clean(self, is_log_enabled=False):
         output = io.StringIO()
@@ -96,6 +97,22 @@ class RemoveEmptySubfoldersTest(unittest.TestCase):
         self.assertTrue(lines[0].endswith(os.path.join("a", "b") + "\x1b[0m"))
         self.assertTrue(lines[1].endswith("a\x1b[0m"))
         self.assertEqual(self.clean(False), "")
+
+
+class RemoveMetaFilesTest(unittest.TestCase):
+    def test_removes_meta_files_and_macos_folders(self):
+        with tempfile.TemporaryDirectory() as root:
+            for path in ("G/Game (USA)/__MACOSX/._game.iso", "G/Game (USA)/game.iso", "__MACOSX/._a",
+                         "G/.DS_Store", "Thumbs.db", "Keep (USA).nes"):
+                os.makedirs(os.path.dirname(os.path.join(root, path)), exist_ok=True)
+                open(os.path.join(root, path), "w").close()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                romlm.remove_meta_files(root, True)
+            files = sorted(os.path.relpath(os.path.join(d, f), root) for d, _, names in os.walk(root) for f in names)
+            self.assertEqual(files, sorted(["Keep (USA).nes", os.path.join("G", "Game (USA)", "game.iso")]))
+            self.assertFalse(os.path.exists(os.path.join(root, "G", "Game (USA)", "__MACOSX")))
+            self.assertEqual(output.getvalue().count("Removed meta folder"), 2)
 
 
 class ParseOptionsTest(unittest.TestCase):
@@ -130,6 +147,14 @@ class ParseOptionsTest(unittest.TestCase):
         self.assertEqual(self.parse("-p").packing_format, "7z")
         self.assertEqual(self.parse("-p", "zip").packing_format, "zip")
 
+    def test_extract_mode(self):
+        self.assertFalse(self.parse().is_unpacking_enabled)
+        self.assertTrue(self.parse("-x").is_unpacking_enabled)
+        self.assertEqual(self.parse("-x").extract_mode, ExtractMode.AUTO)
+        self.assertEqual(self.parse("-x", "-l").extract_mode, ExtractMode.AUTO)
+        self.assertEqual(self.parse("-x", "f").extract_mode, ExtractMode.FOLDERS)
+        self.assertEqual(self.parse("--extract", "p").extract_mode, ExtractMode.PLAIN)
+
     def test_duplicates_action_depends_on_log(self):
         self.assertEqual(self.parse("-r").remove_duplicates_action, Action.KEEP_ALL)
         self.assertEqual(self.parse("-r", "-l").remove_duplicates_action, Action.ASK)
@@ -148,7 +173,8 @@ class ParseOptionsTest(unittest.TestCase):
         self.assertEqual(options.exclude_tags, ["USA"])
 
     def test_mistakes_are_usage_errors(self):
-        for args in (["-p", "rar"], ["-r", "bogus"], ["-u", "pirates"], ["-s", "x"], ["-x", "-p"], ["--nope"]):
+        for args in (["-p", "rar"], ["-r", "bogus"], ["-u", "pirates"], ["-s", "x"], ["-x", "-p"], ["-x", "a"],
+                     ["--nope"]):
             with self.subTest(args=args), mock.patch("sys.stderr"), self.assertRaises(SystemExit) as raised:
                 self.parse(*args)
             self.assertEqual(raised.exception.code, 2)

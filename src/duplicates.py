@@ -203,7 +203,7 @@ def pick_editions(by_game) -> dict:
     discs_of_base = {}
     for key, releases in by_game.items():
         if releases[0].disc > -1:
-            discs_of_base.setdefault(releases[0].base_name, {})[releases[0].disc] = key
+            discs_of_base.setdefault(releases[0].base_name.lower(), {})[releases[0].disc] = key
 
     losers = {}
     for discs in discs_of_base.values():

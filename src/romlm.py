@@ -1,6 +1,7 @@
 import sys
 import os
 import glob
+import shutil
 import argparse
 from dataclasses import dataclass
 from enum import Flag, auto
@@ -62,8 +63,15 @@ def get_new_folder(filename, separation_options, sorting_options, subfolders, ex
 
 def remove_meta_files(path, is_log_enabled):
     for dirpath, dirnames, filenames in os.walk(path):
+        # Whole folders of junk, like "__MACOSX" from the zips made on a Mac, are removed without walking into them
+        for d in [d for d in dirnames if d.lower() in archives.META_FOLDERS]:
+            folder_path = os.path.join(dirpath, d)
+            shutil.rmtree(folder_path)
+            dirnames.remove(d)
+            if is_log_enabled:
+                print(f"Removed meta folder: {Fore.RED}{folder_path}{Style.RESET_ALL}")
         for f in filenames:
-            if f.lower() in ("desktop.ini", "thumbs.db", ".ds_store"):
+            if f.lower() in archives.META_FILES:
                 file_path = os.path.join(dirpath, f)
                 os.remove(file_path)
                 if is_log_enabled:
@@ -94,6 +102,7 @@ class Options:
     subfolders: list
     exclude_tags: list
     is_unpacking_enabled: bool
+    extract_mode: archives.ExtractMode
     is_packing_enabled: bool
     packing_format: str
     is_remove_duplicates: bool
@@ -124,6 +133,16 @@ def sort_argument(value):
 def unlicensed_argument(value) -> CategoryOption:
     return CategoryOption(0) if value == "none" else parse_category_flags(value, "hp")
 
+EXTRACT_MODES = {
+    "f": archives.ExtractMode.FOLDERS,
+    "p": archives.ExtractMode.PLAIN,
+}
+
+def extract_argument(value) -> archives.ExtractMode:
+    if value not in EXTRACT_MODES:
+        raise argparse.ArgumentTypeError(f"unknown option '{value}', use 'f' or 'p'")
+    return EXTRACT_MODES[value]
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="romlm", usage="%(prog)s [parameters]", add_help=False, allow_abbrev=False,
@@ -144,10 +163,18 @@ def build_parser() -> argparse.ArgumentParser:
              "'a' - all\n"
              "or use any combinations, like 'hp' or 'ps'.\n"
              "'reverse' - un-sort ROMs, placing all in the root.\n")
-    archives = parser.add_mutually_exclusive_group()
-    archives.add_argument("-x", "--extract", action="store_true",
-        help="Extract all 7z/zip files in the folder.\n")
-    archives.add_argument("-p", "--pack", metavar="format", nargs="?", const="7z", choices=("7z", "zip"),
+    archive_options = parser.add_mutually_exclusive_group()
+    archive_options.add_argument("-x", "--extract", metavar="mode", nargs="?", const=archives.ExtractMode.AUTO,
+        type=extract_argument,
+        help="Extract all 7z/zip files in the folder.\n"
+             "[mode] can be:\n"
+             "'f' - extract every archive into its own folder\n"
+             "'p' - extract all files next to the archives\n"
+             "Default is to use an own folder only for archives\n"
+             "with more than one file, with a generic file name\n"
+             "inside, like 'game.iso' or 'Disc 1.cue', or with\n"
+             "a file that is already there or in another archive.\n")
+    archive_options.add_argument("-p", "--pack", metavar="format", nargs="?", const="7z", choices=("7z", "zip"),
         help="Pack all files in the folder to 7z/zip format.\n"
              "[format] can be '7z' or 'zip'. Default is '7z'.\n")
     parser.add_argument("-u", "--unlicensed", metavar="options", nargs="?", const=CategoryOption(0), type=unlicensed_argument,
@@ -195,7 +222,8 @@ def parse_options(argv) -> Options:
         separation_options=CategoryOption.HOMEBREW | CategoryOption.PIRATES if args.unlicensed is None else args.unlicensed,
         subfolders=args.folders,
         exclude_tags=args.exclude,
-        is_unpacking_enabled=args.extract,
+        is_unpacking_enabled=args.extract is not None,
+        extract_mode=args.extract or archives.ExtractMode.PLAIN,
         is_packing_enabled=args.pack is not None,
         packing_format=args.pack or "7z",
         is_remove_duplicates=args.remove_duplicates is not None,
@@ -276,7 +304,8 @@ def run(options):
             print(">> Preparing processing...")
         planned = operations.plan_operations(files_list, lambda file_name: target_folder_for(file_name, options),
                                              options.is_unpacking_enabled, options.is_packing_enabled,
-                                             options.packing_format)
+                                             options.packing_format, options.extract_mode)
+        planned = operations.resolve_extraction_folders(planned)
 
         print(">> Processing files...")
         failures = operations.run_operations(planned, options.is_log_enabled, options.is_dry_run)

@@ -32,7 +32,7 @@ romlm = "romlm:mane"
 version = { attr = "romlm.version" }
 
 [tool.setuptools]
-py-modules = ["romlm", "tags", "duplicates", "archives", "operations"]
+py-modules = ["romlm", "tags", "duplicates", "archives", "operations", "discs"]
 
 [tool.setuptools.package-dir]
 "" = "src"
