@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `-x` without a mode now gives an archive its own folder when it holds more than one file, or a file with a generic
   name like `game.iso`, `Disc 1.cue` or `track01.bin`, instead of always extracting next to the archive. Use `-x p`
   for the old behavior. `--dry-run` reads the archives to show where they would be extracted.
+- The cleanup after processing now also removes `__MACOSX` folders, left by zips made on a Mac.
 
 ## [1.2.0] - 2026-10-16
 ### Added

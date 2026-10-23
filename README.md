@@ -109,7 +109,7 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
 
 
 - **Other Utilities**  
-  - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`).
+  - Cleans out unwanted system meta-files (e.g., `desktop.ini`, `.DS_Store`, `__MACOSX` folders).
   - Removes empty subdirectories after sorting.
   - Provides an in-script help guide (`-h, --help`).
 

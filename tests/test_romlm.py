@@ -99,6 +99,22 @@ class RemoveEmptySubfoldersTest(unittest.TestCase):
         self.assertEqual(self.clean(False), "")
 
 
+class RemoveMetaFilesTest(unittest.TestCase):
+    def test_removes_meta_files_and_macos_folders(self):
+        with tempfile.TemporaryDirectory() as root:
+            for path in ("G/Game (USA)/__MACOSX/._game.iso", "G/Game (USA)/game.iso", "__MACOSX/._a",
+                         "G/.DS_Store", "Thumbs.db", "Keep (USA).nes"):
+                os.makedirs(os.path.dirname(os.path.join(root, path)), exist_ok=True)
+                open(os.path.join(root, path), "w").close()
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                romlm.remove_meta_files(root, True)
+            files = sorted(os.path.relpath(os.path.join(d, f), root) for d, _, names in os.walk(root) for f in names)
+            self.assertEqual(files, sorted(["Keep (USA).nes", os.path.join("G", "Game (USA)", "game.iso")]))
+            self.assertFalse(os.path.exists(os.path.join(root, "G", "Game (USA)", "__MACOSX")))
+            self.assertEqual(output.getvalue().count("Removed meta folder"), 2)
+
+
 class ParseOptionsTest(unittest.TestCase):
     def parse(self, *args):
         return romlm.parse_options(list(args))

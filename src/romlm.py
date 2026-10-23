@@ -1,6 +1,7 @@
 import sys
 import os
 import glob
+import shutil
 import argparse
 from dataclasses import dataclass
 from enum import Flag, auto
@@ -62,6 +63,13 @@ def get_new_folder(filename, separation_options, sorting_options, subfolders, ex
 
 def remove_meta_files(path, is_log_enabled):
     for dirpath, dirnames, filenames in os.walk(path):
+        # Whole folders of junk, like "__MACOSX" from the zips made on a Mac, are removed without walking into them
+        for d in [d for d in dirnames if d.lower() in archives.META_FOLDERS]:
+            folder_path = os.path.join(dirpath, d)
+            shutil.rmtree(folder_path)
+            dirnames.remove(d)
+            if is_log_enabled:
+                print(f"Removed meta folder: {Fore.RED}{folder_path}{Style.RESET_ALL}")
         for f in filenames:
             if f.lower() in archives.META_FILES:
                 file_path = os.path.join(dirpath, f)
