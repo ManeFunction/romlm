@@ -8,8 +8,6 @@ ROM collection that follows a similar naming convention.
 If you have some issues with other ROM sets, that can't be worked-around with the current implementation, 
 feel free to open an issue on the [GitHub issues](https://github.com/ManeFunction/romlm/issues) page.
 
----
-
 ## Features
 
 - **Extract (`-x, --extract`)**  
@@ -130,8 +128,6 @@ feel free to open an issue on the [GitHub issues](https://github.com/ManeFunctio
   - Removes empty subdirectories after sorting.
   - Provides an in-script help guide (`-h, --help`).
 
----
-
 ## Installation
 
 **romlm** is available from a variety of sources.  
@@ -188,8 +184,6 @@ files. `brew install sevenzip` on macOS/Linux, or the [official installer](https
     - if you are familiar with Python scripts, venv, and dependencies, you can simply clone the repository 
       and run `romlm.py`. In that way, feel free to modify the script for yourself as you want.
 
----
-
 ## Backstory
 
 As a user of Analogue Pocket and an Emulation Station based handheld system, there are some nuances from both worlds
@@ -207,8 +201,6 @@ But I do not need all of those for a device that made for casual play. To be hon
 a rectangular screen, specifically for the Pico-8. Emulation capabilities of this device is just a neat bonus
 for me :) So, to prepare ROMs for Emulation Station devices, like Powkiddy, Anbernic, Miyoo, etc. we can clean
 our library from all the stuff we never play anyway.
-
----
 
 ## Usage Examples
 
@@ -233,8 +225,6 @@ This way you will keep all the Japanese versions of the games, separated into a 
 all other duplicates will be removed, easing the access to the games you want to play in the future and
 saving the space on your device for more great games.
 
-
----
 
 ## Credits
 
